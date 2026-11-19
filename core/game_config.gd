@@ -19,5 +19,14 @@ const QUOTA_RATIO: float = 0.5
 ## Quotas are rounded to this step so they read nicely.
 const QUOTA_STEP: int = 10
 
+## The monster stays still this long after a round starts, so players can get inside.
+const MONSTER_WAKE_DELAY_SEC: float = 20.0
+
 const DEFAULT_LOCALE: String = "en"
 const SUPPORTED_LOCALES: PackedStringArray = ["en", "vi"]
+
+## Physics layer bits (see layer_names in project.godot). The mannequin only
+## collides with the world: it opens doors instead and walks through loot.
+const LAYER_WORLD: int = 1
+const LAYER_DOORS: int = 2
+const LAYER_ITEMS: int = 4

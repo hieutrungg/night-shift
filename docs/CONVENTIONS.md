@@ -121,6 +121,8 @@ Thêm:
 - Vòng chơi (`features/round/round_manager.gd`): host quyết định bắt đầu, tiền đã thu, kết thúc; client chỉ tự đếm giờ giữa các tin nhắn. Luật vòng (thời gian, tỉ lệ chỉ tiêu) nằm trong `GameConfig`.
 - Chơi lại: dùng `GreyboxLevel.restart_round()` (dừng đồng bộ người chơi → xóa người chơi/đồ → mới tải lại map). Không gọi thẳng `Net.restart_match()`, vì sẽ sinh lỗi "Node not found" ở client.
 - Khoảng cách tối đa host chấp nhận yêu cầu mở cửa/nhặt đồ: `GameConfig.INTERACT_MAX_DISTANCE`. Tìm node người chơi theo peer id bằng `Player.find_by_peer()`.
+- Lớp vật lý (`GameConfig.LAYER_*`, tên trong `project.godot`): 1 `world`, 2 `doors`, 3 `items`. Người chơi, đồ vật và tia tương tác va chạm cả 3 lớp; ma-nơ-canh chỉ va chạm `world` (nó tự mở cửa khi đến gần và đi xuyên qua đồ). Mọi thứ mới phải chọn lớp rõ ràng.
+- Cái chết do host quyết định: `GreyboxLevel.kill_player(peer_id)`. Người chết chuyển sang chế độ xem (`Spectator`); cả đội chết thì vòng kết thúc.
 - Dữ liệu tần suất cao (vị trí) dùng `unreliable` / `unreliable_ordered`. Sự kiện (nhặt đồ, chết, kết thúc vòng) dùng `reliable`.
 - Không gửi `Object`/`Node` qua RPC; gửi id, `NodePath` hoặc giá trị đơn giản.
 - Code chỉ host được chạy phải có guard `if not multiplayer.is_server(): return` ở đầu.
@@ -158,6 +160,7 @@ Thêm:
 
 - **Không cài, tải, nâng cấp phần mềm, addon, plugin hay package** khi chưa được người dùng đồng ý rõ ràng.
 - Không sửa PATH, registry, firewall hay thiết lập hệ thống.
+- Không sửa file bằng `Get-Content`/`Set-Content` của Windows PowerShell 5.1: nó đọc sai UTF-8 (hỏng chữ tiếng Việt) và thêm BOM. Dùng công cụ sửa file của agent hoặc Git Bash.
 - **Không commit, không push** trừ khi người dùng yêu cầu. Khi được yêu cầu: tác giả là người dùng (`hieutrungg`), **không thêm dòng `Co-Authored-By` hay ghi công AI** vào commit/PR.
 - Mỗi task một nhánh Git (`feat/...`, `fix/...`). Hai agent không sửa cùng một file cùng lúc.
 - Chỉ sửa file liên quan đến task. Muốn đổi `project.godot`, file quy ước này hoặc kiến trúc mạng thì nói rõ trong báo cáo.

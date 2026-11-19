@@ -33,6 +33,7 @@ properties/4/spawn = true
 properties/4/replication_mode = 2
 
 [node name="Player" type="CharacterBody3D"]
+collision_mask = 7
 script = ExtResource("1_player")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
@@ -66,6 +67,7 @@ spot_range = 18.0
 spot_angle = 28.0
 
 [node name="InteractRay" type="RayCast3D" parent="Head/Camera3D"]
+collision_mask = 7
 target_position = Vector3(0, 0, -2.2)
 
 [node name="HoldPoint" type="Marker3D" parent="Head/Camera3D"]

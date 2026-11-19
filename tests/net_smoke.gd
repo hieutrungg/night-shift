@@ -22,6 +22,8 @@ const POSITION_SETTLE_SEC: float = 1.0
 const CONTEST_ITEM: int = 0
 const FAR_ITEM: int = 14
 const CONTENDERS: PackedStringArray = ["C1", "C2"]
+## The host kills this client to check death sync and spectating.
+const VICTIM: String = "C3"
 ## Items spawned by greybox_01 at the start of a round.
 const ITEM_COUNT: int = 15
 ## Lets clients check the result before the host starts the next round.
@@ -77,6 +79,10 @@ func _run_host() -> void:
 	_check(Net.start_game(), "match started")
 	var spawned := await _wait_until(func() -> bool: return _level_players().size() == GameConfig.MAX_PLAYERS, 30.0)
 	_check(spawned, "host sees %d players (has %d)" % [GameConfig.MAX_PLAYERS, _level_players().size()])
+	var monster := (get_tree().current_scene as GreyboxLevel).get_monster()
+	_check(monster != null, "mannequin spawned on the host")
+	if monster != null:
+		monster.asleep_for = INF  # This test is about sync, not the chase.
 	var moved := await _wait_until(_all_clients_moved, 15.0)
 	_check(moved, "every client's movement reached the host")
 	await _run_host_contest()
@@ -110,8 +116,13 @@ func _run_host_round(level: GreyboxLevel, item: Item) -> void:
 		func() -> bool: return level.get_item(CONTEST_ITEM) == null and round_manager.collected == value, 20.0)
 	_check(deposited, "winner loaded the item into the van (+%d)" % value)
 	_check(level.get_items().size() == item_count - 1, "deposited item removed on the host")
+	var victim_id := _peer_id_of(VICTIM)
+	level.kill_player(victim_id)
+	var victim := Player.find_by_peer(get_tree(), victim_id)
+	_check(victim != null and victim.is_dead, "host killed %s" % VICTIM)
+	_check(round_manager.is_playing(), "round goes on while others live")
 	await _seconds(POSITION_SETTLE_SEC)
-	round_manager.finish()
+	round_manager.finish(RoundManager.EndReason.TIME_UP)
 	_check(round_manager.phase == RoundManager.Phase.ENDED and not round_manager.success,
 		"host ended the round below quota (%d/%d)" % [round_manager.collected, round_manager.quota])
 	await _seconds(ROUND_RESULT_WAIT_SEC)
@@ -182,11 +193,34 @@ func _run_client_round(level: GreyboxLevel, me: Player, item: Item, i_won: bool)
 	var deposited := await _wait_until(
 		func() -> bool: return level.get_item(CONTEST_ITEM) == null and round_manager.collected == value, 15.0)
 	_check(deposited and me.held_item == null, "deposit seen on this peer (+%d)" % value)
+	await _check_victim(level)
 	var ended := await _wait_until(func() -> bool: return round_manager.phase == RoundManager.Phase.ENDED, 15.0)
 	_check(ended and round_manager.collected == value and not round_manager.success, "same round result as the host")
 	var old_level_id := level.get_instance_id()
 	var restarted := await _wait_until(func() -> bool: return _is_new_round(old_level_id), 30.0)
 	_check(restarted, "new round loaded after play again")
+
+
+func _check_victim(level: GreyboxLevel) -> void:
+	_check(level.get_monster() != null, "mannequin spawned on this peer")
+	var victim := Player.find_by_peer(get_tree(), _peer_id_of(VICTIM))
+	if victim == null:
+		_check(false, "victim player exists")
+		return
+	var dead := await _wait_until(func() -> bool: return victim.is_dead, 10.0)
+	_check(dead and not victim.visible, "%s's death seen on this peer" % VICTIM)
+	if _player_name != VICTIM:
+		return
+	var spectator := level.get_node_or_null(^"Spectator") as Spectator
+	var target := spectator.get_target() if spectator != null else null
+	_check(target != null and not target.is_dead, "dead player spectates a living player")
+
+
+func _peer_id_of(player_name: String) -> int:
+	for peer_id: int in Net.players.keys():
+		if Net.players[peer_id] == player_name:
+			return peer_id
+	return 0
 
 
 func _run_extra() -> void:

@@ -4,6 +4,8 @@ extends Node
 ## Prints PASS/FAIL per check and exits with code 0 only if all pass.
 
 const LEVEL_SCENE: PackedScene = preload("res://levels/greybox_01/greybox_01.tscn")
+## Ten seconds of physics for the mannequin to reach the next room.
+const MONSTER_KILL_FRAMES: int = 600
 
 var _failures: int = 0
 
@@ -29,6 +31,10 @@ func _run() -> void:
 	_check(player != null, "player spawned")
 	if player == null:
 		return
+	# Keep the mannequin asleep until its own test.
+	var monster := level.get_monster()
+	if monster != null:
+		monster.asleep_for = INF
 	_check(player.is_on_floor(), "player stands on the ground")
 	_check(level.get_player_spawns().size() == GameConfig.MAX_PLAYERS, "one spawn point per max player")
 	_check(level.get_doors().size() == 17, "17 doors built (got %d)" % level.get_doors().size())
@@ -39,6 +45,7 @@ func _run() -> void:
 	await _check_item(player, level.get_item(0), level.get_item(14))
 	_check_flashlight(player)
 	await _check_round(level, player, level.get_item(0))
+	await _check_monster(level, player)
 
 
 func _check_translations() -> void:
@@ -75,6 +82,8 @@ func _check_walking(player: Player) -> void:
 
 
 func _check_door(player: Player, door: Door) -> void:
+	var doorway := door.get_panel_position()
+	_check(_doorway_blocked(door, doorway), "closed door blocks the doorway")
 	door.request_set_open(true)
 	await _physics_frames(10)
 	_check(not door.is_open, "host refuses a door request from far away")
@@ -84,6 +93,7 @@ func _check_door(player: Player, door: Door) -> void:
 	await _physics_frames(45)
 	_check(door.is_open and door.get_swing_angle_deg() > 80.0,
 		"door opens (angle %.1f)" % door.get_swing_angle_deg())
+	_check(not _doorway_blocked(door, doorway), "open door no longer blocks the doorway")
 	door.request_set_open(false)
 	await _physics_frames(45)
 	_check(not door.is_open and absf(door.get_swing_angle_deg()) < 1.0, "door closes")
@@ -137,10 +147,45 @@ func _check_round(level: GreyboxLevel, player: Player, item: Item) -> void:
 		"deposit adds the item's value (%d)" % round_manager.collected)
 	_check(level.get_items().size() == items_before - 1, "deposited item is removed")
 
-	round_manager.finish()
+
+func _check_monster(level: GreyboxLevel, player: Player) -> void:
+	var monster := level.get_monster()
+	_check(monster != null, "mannequin spawned")
+	if monster == null:
+		return
+	var round_manager := level.get_round()
+	var start := monster.global_position
+	# Same room, three metres away, looking straight at it (camera faces -Z).
+	_teleport(player, Vector3(start.x, 0.1, start.z + 3.0))
+	player.rotation = Vector3.ZERO
+	(player.get_node(^"Head") as Node3D).rotation = Vector3.ZERO
+	monster.asleep_for = 0.0
+	await _physics_frames(60)
+	_check(monster.is_awake() and monster.is_seen, "awake mannequin knows it is watched")
+	_check(monster.global_position.distance_to(start) < 0.1, "mannequin freezes while watched")
+
+	# Room next door, wall in between: it must path through the closed door.
+	var door := level.get_node_or_null(^"Door_28_4") as Door
+	_teleport(player, Vector3(23.5, 0.1, 4.5))
+	for _frame in MONSTER_KILL_FRAMES:
+		if player.is_dead:
+			break
+		await get_tree().physics_frame
+	_check(player.is_dead and not player.visible, "unseen mannequin reaches and kills the player")
+	_check(door != null and door.is_open, "mannequin pushed the closed door open")
 	await _physics_frames(2)
-	_check(round_manager.phase == RoundManager.Phase.ENDED and not van.accepting, "round ends and the van closes")
-	_check(round_manager.success == (value >= round_manager.quota), "result compares collected to quota")
+	_check(round_manager.phase == RoundManager.Phase.ENDED
+		and round_manager.end_reason == RoundManager.EndReason.ALL_DEAD and not round_manager.success,
+		"round ends as 'everyone died'")
+	_check(not level.get_van().accepting and not monster.is_awake(), "van closes and the mannequin stops")
+
+
+## Ray across the doorway, along the panel's normal, against door panels only.
+func _doorway_blocked(door: Door, doorway: Vector3) -> bool:
+	var normal := door.global_basis.z
+	var query := PhysicsRayQueryParameters3D.create(doorway - normal * 0.5, doorway + normal * 0.5)
+	query.collision_mask = GameConfig.LAYER_DOORS
+	return not door.get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 
 func _teleport(player: Player, at: Vector3) -> void:

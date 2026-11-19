@@ -11,17 +11,21 @@ const SECONDS_PER_MINUTE: int = 60
 var _held_item: Item = null
 var _round: RoundManager = null
 var _shown_seconds: int = -1
+var _spectate_target: Player = null
 
 @onready var _prompt_label: Label = %PromptLabel
 @onready var _held_label: Label = %HeldLabel
 @onready var _time_label: Label = %TimeLabel
 @onready var _quota_label: Label = %QuotaLabel
+@onready var _death_panel: Control = %DeathPanel
+@onready var _spectate_label: Label = %SpectateLabel
 @onready var _pause_panel: Control = %PausePanel
 @onready var _settings_button: Button = %SettingsButton
 @onready var _leave_button: Button = %LeaveButton
 @onready var _settings_panel: SettingsPanel = %SettingsPanel
 @onready var _results_panel: Control = %ResultsPanel
 @onready var _result_title: Label = %ResultTitle
+@onready var _result_reason: Label = %ResultReason
 @onready var _result_detail: Label = %ResultDetail
 @onready var _play_again_button: Button = %PlayAgainButton
 @onready var _result_waiting_label: Label = %ResultWaitingLabel
@@ -33,6 +37,7 @@ func _ready() -> void:
 	_time_label.text = ""
 	_quota_label.text = ""
 	_results_panel.visible = false
+	_death_panel.visible = false
 	Settings.locale_changed.connect(_on_locale_changed)
 	_settings_button.pressed.connect(_settings_panel.open)
 	_leave_button.pressed.connect(_on_leave_pressed)
@@ -62,6 +67,14 @@ func bind_round(round_manager: RoundManager) -> void:
 		_show_results()
 
 
+## Shown once this peer's player died.
+func bind_spectator(spectator: Spectator) -> void:
+	_death_panel.visible = true
+	_prompt_label.text = ""
+	spectator.target_changed.connect(_on_spectate_target_changed)
+	_on_spectate_target_changed(spectator.get_target())
+
+
 func _on_interact_prompt_changed(text: String) -> void:
 	_prompt_label.text = text
 
@@ -82,6 +95,7 @@ func _on_round_ended(_success: bool, _collected: int, _quota: int) -> void:
 
 func _on_locale_changed(_locale: String) -> void:
 	_refresh_held()
+	_refresh_spectate()
 	_refresh_quota()
 	_shown_seconds = -1
 	if _results_panel.visible:
@@ -102,6 +116,7 @@ func _show_results() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_results_panel.visible = true
 	_result_title.text = tr("ROUND_SUCCESS" if _round.success else "ROUND_FAILED")
+	_result_reason.text = tr(_round.get_end_reason_key())
 	_result_detail.text = tr("ROUND_COLLECTED").format({"collected": _round.collected, "quota": _round.quota})
 	var is_host := multiplayer.is_server()
 	_play_again_button.visible = is_host
@@ -135,3 +150,16 @@ func _refresh_time() -> void:
 	@warning_ignore("integer_division")
 	var clock := "%d:%02d" % [seconds / SECONDS_PER_MINUTE, seconds % SECONDS_PER_MINUTE]
 	_time_label.text = tr("HUD_TIME_LEFT").format({"time": clock})
+
+
+func _on_spectate_target_changed(target: Player) -> void:
+	_spectate_target = target
+	_refresh_spectate()
+
+
+func _refresh_spectate() -> void:
+	if not is_instance_valid(_spectate_target):
+		_spectate_label.text = ""
+		return
+	var target_name: String = Net.players.get(_spectate_target.get_peer_id(), "")
+	_spectate_label.text = tr("HUD_SPECTATING").format({"name": target_name})

@@ -7,6 +7,8 @@ extends Node3D
 
 signal toggled(is_open: bool)
 
+const GROUP: StringName = &"doors"
+
 @export var open_angle_deg: float = 95.0
 @export var swing_time: float = 0.45
 
@@ -20,6 +22,7 @@ var _tween: Tween
 
 
 func _ready() -> void:
+	add_to_group(GROUP)
 	_interactable.interacted.connect(_on_interacted)
 	_update_prompt()
 
@@ -27,6 +30,17 @@ func _ready() -> void:
 ## Asks the host to open or close the door for the local player.
 func request_set_open(open: bool) -> void:
 	_request_set_open.rpc_id(1, open)
+
+
+## Host only: opens the door without a player request (the monster pushes it).
+func open_by_host() -> void:
+	if multiplayer.is_server() and not is_open:
+		_apply_open.rpc(true)
+
+
+## Centre of the panel (in the doorway while closed).
+func get_panel_position() -> Vector3:
+	return _panel.global_position
 
 
 func get_swing_angle_deg() -> float:

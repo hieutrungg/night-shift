@@ -20,6 +20,8 @@ script = ExtResource("1_door")
 [node name="Hinge" type="Node3D" parent="."]
 
 [node name="Panel" type="AnimatableBody3D" parent="Hinge"]
+collision_layer = 2
+sync_to_physics = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.45, 1.05, 0)
 
 [node name="Mesh" type="MeshInstance3D" parent="Hinge/Panel"]

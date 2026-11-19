@@ -48,3 +48,8 @@ SET_LANG_VI,Tiếng Việt,Tiếng Việt
 SET_MOUSE_SENSITIVITY,Mouse sensitivity,Độ nhạy chuột
 SET_VOLUME,Volume,Âm lượng
 SET_CLOSE,Close,Đóng
+HUD_YOU_DIED,You died,Bạn đã chết
+HUD_SPECTATING,Watching {name} · [Space] next player,Đang xem {name} · [Space] người tiếp theo
+ROUND_REASON_TIME_UP,Time's up.,Hết giờ.
+ROUND_REASON_ALL_COLLECTED,All loot collected.,Đã thu hết đồ.
+ROUND_REASON_ALL_DEAD,Everyone died.,Cả đội đã chết.

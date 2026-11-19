@@ -143,6 +143,36 @@ theme_override_constants/outline_size = 6
 theme_override_font_sizes/font_size = 20
 horizontal_alignment = 2
 
+[node name="DeathPanel" type="VBoxContainer" parent="Root"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 90.0
+offset_bottom = 170.0
+grow_horizontal = 2
+mouse_filter = 2
+
+[node name="DeathLabel" type="Label" parent="Root/DeathPanel"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.15, 0.12, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 40
+text = "HUD_YOU_DIED"
+horizontal_alignment = 1
+
+[node name="SpectateLabel" type="Label" parent="Root/DeathPanel"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 20
+horizontal_alignment = 1
+autowrap_mode = 3
+
 [node name="ResultsPanel" type="Control" parent="Root"]
 unique_name_in_owner = true
 visible = false
@@ -180,6 +210,15 @@ unique_name_in_owner = true
 auto_translate_mode = 2
 layout_mode = 2
 theme_override_font_sizes/font_size = 40
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="ResultReason" type="Label" parent="Root/ResultsPanel/Center/Column"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
+theme_override_font_sizes/font_size = 22
 horizontal_alignment = 1
 autowrap_mode = 3
 

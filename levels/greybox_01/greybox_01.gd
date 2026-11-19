@@ -1,11 +1,12 @@
 extends GreyboxLevel
 ## Greybox 01: one-floor office block, 12 rooms around a central corridor,
-## parking lot with the van at the bottom. Legend: see greybox_level.gd.
+## parking lot with the van at the bottom; the mannequin starts in the
+## top-right room. Legend: see greybox_level.gd.
 
 const LAYOUT: PackedStringArray = [
 	"#####################################",
 	"#i......#.......#...#.......#......i#",
-	"#.......#...i...#.L.#.......#.......#",
+	"#.......#...i...#.L.#.......#...M...#",
 	"#...L...#...L...D...D...L...#...L...#",
 	"#.......D.......#...#....i..D.......#",
 	"#..i....#.......#...#.......#....i..#",

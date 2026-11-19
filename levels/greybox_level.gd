@@ -1,4 +1,4 @@
-﻿class_name GreyboxLevel
+class_name GreyboxLevel
 extends Node3D
 ## Builds a blockout level from an ASCII layout: one character = one cell.
 ## Subclasses override _get_layout() and _get_item_pool().
@@ -8,6 +8,7 @@ extends Node3D
 ##   D  doorway with a door       L  indoor floor + ceiling light
 ##   i  indoor floor + item spawn ,  outdoor ground (no ceiling)
 ##   P  outdoor player spawn      V  van / drop-off area (placeholder)
+##   M  indoor floor + monster spawn
 
 enum RunKind { WALL, INDOOR, OUTDOOR }
 
@@ -16,17 +17,23 @@ const WALL_HEIGHT: float = 3.0
 const CEILING_THICKNESS: float = 0.2
 const DOOR_HEIGHT: float = 2.2
 const BOUNDARY_HEIGHT: float = 6.0
-const INDOOR_CHARS: String = ".DLi"
+const INDOOR_CHARS: String = ".DLiM"
 
 const PLAYER_SCENE: PackedScene = preload("res://features/player/player.tscn")
 const DOOR_SCENE: PackedScene = preload("res://features/doors/door.tscn")
 const ITEM_SCENE: PackedScene = preload("res://features/items/item.tscn")
 const HUD_SCENE: PackedScene = preload("res://ui/hud/hud.tscn")
 const VAN_SCENE: PackedScene = preload("res://features/round/van.tscn")
+const MONSTER_SCENE: PackedScene = preload("res://features/monster/mannequin.tscn")
 const VAN_HEIGHT: float = 2.0
 const RESTART_FLUSH_FRAMES: int = 2
 ## Time for in-flight player movement packets to land before despawning.
 const RESTART_SYNC_STOP_SEC: float = 0.25
+## Navigation mesh sizes: multiples of the 0.25 m voxel; the radius must fit
+## a 1-cell doorway.
+const NAV_AGENT_RADIUS: float = 0.25
+const NAV_AGENT_HEIGHT: float = 2.0
+const NAV_MAX_CLIMB: float = 0.25
 
 ## 0 picks new loot every round; any other value repeats the same loot.
 @export var item_seed: int = 0
@@ -40,12 +47,18 @@ var _players_root: Node3D
 var _player_spawner: MultiplayerSpawner
 var _items_root: Node3D
 var _item_spawner: MultiplayerSpawner
+var _monsters_root: Node3D
+var _monster_spawner: MultiplayerSpawner
+var _monster: Mannequin = null
+var _spectator: Spectator = null
 var _doors: Array[Door] = []
 var _items: Array[Item] = []
 var _player_spawns: Array[Vector3] = []
 var _item_spawns: Array[Vector3] = []
 var _van_cells: Array[Vector3] = []
+var _monster_spawns: Array[Vector3] = []
 
+var _navigation: NavigationRegion3D
 var _geometry: Node3D
 var _wall_material: StandardMaterial3D
 var _ceiling_material: StandardMaterial3D
@@ -58,12 +71,19 @@ func _ready() -> void:
 	if not _is_layout_valid():
 		return
 	_create_materials()
+	# Geometry sits under the navigation region so the host can bake it.
+	_navigation = NavigationRegion3D.new()
+	_navigation.name = "Navigation"
+	add_child(_navigation)
 	_geometry = Node3D.new()
 	_geometry.name = "Geometry"
-	add_child(_geometry)
+	_navigation.add_child(_geometry)
 	_build()
+	if multiplayer.is_server():
+		_bake_navigation()
 	_setup_round()
 	_setup_item_spawning()
+	_setup_monster_spawning()
 	_setup_player_spawning()
 	if multiplayer.is_server():
 		Net.all_players_loaded.connect(_on_all_players_loaded, CONNECT_ONE_SHOT)
@@ -111,16 +131,33 @@ func get_van() -> Van:
 	return _van
 
 
+## Null until the host spawned it (or when the layout has no M cell).
+func get_monster() -> Mannequin:
+	return _monster if is_instance_valid(_monster) else null
+
+
+## Host only: kills a player (monster touch). Ends the round when nobody is left.
+func kill_player(peer_id: int) -> void:
+	if not multiplayer.is_server():
+		return
+	var player := Player.find_by_peer(get_tree(), peer_id)
+	if player == null or player.is_dead:
+		return
+	if player.held_item != null:
+		player.held_item.force_release()
+	_set_player_dead.rpc(peer_id)
+	_end_round_if_all_dead()
+
+
 ## Host only: clears players and items on every peer, then reloads the level.
 func restart_round() -> void:
 	if not multiplayer.is_server():
 		return
 	_stop_player_sync.rpc()
 	await get_tree().create_timer(RESTART_SYNC_STOP_SEC).timeout
-	for child in _items_root.get_children():
-		child.queue_free()
-	for child in _players_root.get_children():
-		child.queue_free()
+	for root: Node in [_items_root, _players_root, _monsters_root]:
+		for child in root.get_children():
+			child.queue_free()
 	# Despawn messages must reach clients while they still have this level,
 	# otherwise they arrive for nodes the client already unloaded.
 	for _frame in RESTART_FLUSH_FRAMES:
@@ -132,6 +169,27 @@ func restart_round() -> void:
 func _stop_player_sync() -> void:
 	if _player != null:
 		_player.stop_syncing()
+
+
+@rpc("authority", "call_local", "reliable")
+func _set_player_dead(peer_id: int) -> void:
+	var player := Player.find_by_peer(get_tree(), peer_id)
+	if player == null:
+		return
+	player.die()
+	if player == _player and _spectator == null:
+		_spectator = Spectator.new()
+		_spectator.name = "Spectator"
+		add_child(_spectator)
+		if _hud != null:
+			_hud.bind_spectator(_spectator)
+
+
+func _end_round_if_all_dead() -> void:
+	for player in get_players():
+		if not player.is_dead:
+			return
+	_round.finish(RoundManager.EndReason.ALL_DEAD)
 
 
 ## Override: the ASCII rows of the level, all the same length.
@@ -233,6 +291,8 @@ func _build_cell(col: int, row: int, cell: String) -> void:
 			_player_spawns.append(center + Vector3.UP * 0.1)
 		"V":
 			_van_cells.append(center)
+		"M":
+			_monster_spawns.append(center + Vector3.UP * 0.1)
 
 
 func _cell_center(col: int, row: int) -> Vector3:
@@ -298,7 +358,8 @@ func _build_van() -> void:
 	_van.size = size
 	_van.color = _van_material.albedo_color
 	_van.position = center + Vector3.UP * size.y * 0.5
-	add_child(_van)
+	# Inside Geometry so the navigation mesh routes around it.
+	_geometry.add_child(_van)
 
 
 func _add_boundary(width: int, depth: int) -> void:
@@ -377,6 +438,7 @@ func _setup_player_spawning() -> void:
 func _on_all_players_loaded() -> void:
 	var total_value := _spawn_all_items()
 	_spawn_all_players()
+	_spawn_monster()
 	_round.start(_quota_for(total_value))
 
 
@@ -440,7 +502,7 @@ func _on_item_deposited(item: Item, _peer_id: int) -> void:
 	_round.add_collected(item.data.value)
 	item.consume()
 	if _count_items_left() == 0:
-		_round.finish()
+		_round.finish(RoundManager.EndReason.ALL_COLLECTED)
 
 
 func _count_items_left() -> int:
@@ -454,11 +516,15 @@ func _count_items_left() -> int:
 func _on_round_started(_duration_sec: float, _quota: int) -> void:
 	if _van != null:
 		_van.accepting = true
+	if get_monster() != null:
+		_monster.hunting = true
 
 
 func _on_round_ended(_success: bool, _collected: int, _quota: int) -> void:
 	if _van != null:
 		_van.accepting = false
+	if get_monster() != null:
+		_monster.hunting = false
 
 
 func _spawn_all_players() -> void:
@@ -484,6 +550,8 @@ func _on_player_left(peer_id: int) -> void:
 	var player := _players_root.get_node_or_null(str(peer_id))
 	if player != null:
 		player.queue_free()
+	if _round.is_playing():
+		_end_round_if_all_dead()
 
 
 func _on_player_entered(node: Node) -> void:
@@ -500,3 +568,43 @@ func _on_player_entered(node: Node) -> void:
 		await player.ready
 	_hud.bind_player(player)
 	_hud.bind_round(_round)
+
+
+## Host only: walkable areas for the monster, baked from the static geometry.
+func _bake_navigation() -> void:
+	var mesh := NavigationMesh.new()
+	mesh.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
+	mesh.agent_radius = NAV_AGENT_RADIUS
+	mesh.agent_height = NAV_AGENT_HEIGHT
+	mesh.agent_max_climb = NAV_MAX_CLIMB
+	_navigation.navigation_mesh = mesh
+	_navigation.bake_navigation_mesh(false)
+
+
+func _setup_monster_spawning() -> void:
+	_monsters_root = Node3D.new()
+	_monsters_root.name = "Monsters"
+	add_child(_monsters_root)
+	_monster_spawner = MultiplayerSpawner.new()
+	_monster_spawner.name = "MonsterSpawner"
+	add_child(_monster_spawner)
+	_monster_spawner.spawn_path = _monster_spawner.get_path_to(_monsters_root)
+	_monster_spawner.add_spawnable_scene(MONSTER_SCENE.resource_path)
+	_monsters_root.child_entered_tree.connect(_on_monster_entered)
+
+
+## Host only. MVP: one mannequin at the first M cell.
+func _spawn_monster() -> void:
+	if not multiplayer.is_server() or _monster_spawns.is_empty():
+		return
+	var monster := MONSTER_SCENE.instantiate() as Mannequin
+	monster.name = "Mannequin"
+	monster.position = _monster_spawns[0]
+	monster.player_caught.connect(kill_player)
+	_monsters_root.add_child(monster, true)
+
+
+func _on_monster_entered(node: Node) -> void:
+	var monster := node as Mannequin
+	if monster != null:
+		_monster = monster

@@ -7,6 +7,7 @@ extends CharacterBody3D
 
 signal held_item_changed(item: Item)
 signal interact_prompt_changed(text: String)
+signal died
 
 const GROUP: StringName = &"players"
 
@@ -22,6 +23,8 @@ const GROUP: StringName = &"players"
 @export var drop_push: float = 1.5
 
 var held_item: Item = null
+## Set on every peer by the host (see GreyboxLevel.kill_player).
+var is_dead: bool = false
 ## Replicated so other players see us crouch.
 var crouching: bool = false:
 	set(value):
@@ -69,6 +72,8 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	var mouse_motion := event as InputEventMouseMotion
 	if mouse_motion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		if is_dead:
+			return
 		if _skip_next_mouse_motion:
 			_skip_next_mouse_motion = false
 		else:
@@ -79,6 +84,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_capture_mouse()
 	elif event.is_action_pressed(InputActions.PAUSE):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	elif is_dead:
+		return
 	elif event.is_action_pressed(InputActions.FLASHLIGHT):
 		toggle_flashlight()
 	elif event.is_action_pressed(InputActions.INTERACT):
@@ -88,7 +95,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if not is_multiplayer_authority():
+	if not is_multiplayer_authority() or is_dead:
 		return
 	_update_crouch()
 	_apply_movement(delta)
@@ -124,6 +131,34 @@ func is_flashlight_on() -> bool:
 ## despawns it (used before a new round).
 func stop_syncing() -> void:
 	_sync.public_visibility = false
+
+
+## Where this player looks from; the host uses it for the monster's sight check.
+func get_view_transform() -> Transform3D:
+	return _camera.global_transform
+
+
+## Runs on every peer when the host says this player died.
+func die() -> void:
+	if is_dead:
+		return
+	is_dead = true
+	# Hides the body, nameplate and flashlight for everyone.
+	visible = false
+	_collision.set_deferred(&"disabled", true)
+	_interact_ray.enabled = false
+	velocity = Vector3.ZERO
+	if not _current_prompt.is_empty():
+		_current_prompt = ""
+		interact_prompt_changed.emit("")
+	died.emit()
+
+
+## Local only: look through this player's eyes while spectating them.
+func set_spectated(spectated: bool) -> void:
+	_camera.current = spectated
+	_body_mesh.visible = not spectated
+	_nameplate.visible = not spectated and not is_local()
 
 
 func get_hold_point() -> Node3D:
