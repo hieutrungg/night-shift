@@ -14,6 +14,14 @@ const PORT: int = 17777
 const ADDRESS: String = "127.0.0.1"
 const CLIENT_SHIFT: float = 3.0
 const EXTRA_ATTEMPT_WAIT_SEC: float = 8.0
+## Gives the host time to check movement before clients start teleporting.
+const CONTEST_START_DELAY_SEC: float = 3.0
+## Lets a teleported position reach the host before a request is sent.
+const POSITION_SETTLE_SEC: float = 1.0
+## C1 and C2 both grab this item; C3 asks for FAR_ITEM from outside.
+const CONTEST_ITEM: int = 0
+const FAR_ITEM: int = 14
+const CONTENDERS: PackedStringArray = ["C1", "C2"]
 
 var _failures: int = 0
 var _role: String = ""
@@ -67,8 +75,26 @@ func _run_host() -> void:
 	_check(spawned, "host sees %d players (has %d)" % [GameConfig.MAX_PLAYERS, _level_players().size()])
 	var moved := await _wait_until(_all_clients_moved, 15.0)
 	_check(moved, "every client's movement reached the host")
+	await _run_host_contest()
 	# Let clients finish their own checks before the host leaves.
 	await _seconds(3.0)
+
+
+func _run_host_contest() -> void:
+	var level := get_tree().current_scene as GreyboxLevel
+	var item := level.get_item(CONTEST_ITEM)
+	var door := level.get_doors()[0]
+	var taken := await _wait_until(func() -> bool: return item.is_held() and door.is_open, 20.0)
+	_check(taken, "contested item taken and door opened by clients")
+	_check(_is_contender(item.holder_id), "item went to one contender (holder %d)" % item.holder_id)
+	var holders := 0
+	for player in level.get_players():
+		if player.held_item == item:
+			holders += 1
+	_check(holders == 1, "exactly one player holds the item (got %d)" % holders)
+	_check(not level.get_item(FAR_ITEM).is_held(), "far pick-up was refused")
+	var released := await _wait_until(func() -> bool: return not item.is_held(), 15.0)
+	_check(released, "winner dropped the item")
 
 
 func _run_client() -> void:
@@ -87,8 +113,42 @@ func _run_client() -> void:
 		if other != me and other.is_multiplayer_authority():
 			_check(false, "client must not control player %s" % other.name)
 	me.global_position.x += CLIENT_SHIFT
+	await _seconds(CONTEST_START_DELAY_SEC)
+	await _run_client_contest(me)
 	var host_left := await _wait_until(func() -> bool: return not Net.is_online(), 60.0)
 	_check(host_left, "host ended the session")
+
+
+func _run_client_contest(me: Player) -> void:
+	var level := get_tree().current_scene as GreyboxLevel
+	var item := level.get_item(CONTEST_ITEM)
+	var door := level.get_doors()[0]
+	if _player_name in CONTENDERS:
+		# Two spots next to the item so the contenders don't overlap.
+		var offset := Vector3(1.5, 0.0, 1.0) if _player_name == CONTENDERS[0] else Vector3(1.0, 0.0, 2.0)
+		_teleport(me, Vector3(item.global_position.x, 0.1, item.global_position.z) + offset)
+		await _seconds(POSITION_SETTLE_SEC)
+		item.request_pick_up()
+	else:
+		var far_item := level.get_item(FAR_ITEM)
+		far_item.request_pick_up()
+		_teleport(me, door.global_position + Vector3(1.5, 0.1, 0.5))
+		await _seconds(POSITION_SETTLE_SEC)
+		door.request_set_open(true)
+		await _seconds(POSITION_SETTLE_SEC)
+		_check(not far_item.is_held(), "host refused a far pick-up")
+
+	var settled := await _wait_until(func() -> bool: return item.is_held() and door.is_open, 15.0)
+	_check(settled, "sees the contested item taken and the door open")
+	var winner := item.holder_id
+	_check(_is_contender(winner), "item went to one contender (holder %d)" % winner)
+	var i_won := winner == me.get_peer_id()
+	_check((me.held_item == item) == i_won, "local held item matches the host's decision")
+	if i_won:
+		await _seconds(POSITION_SETTLE_SEC)
+		me.drop_held_item()
+	var released := await _wait_until(func() -> bool: return not item.is_held(), 15.0)
+	_check(released and me.held_item == null, "item released on this peer")
 
 
 func _run_extra() -> void:
@@ -114,6 +174,16 @@ func _all_clients_moved() -> bool:
 		if player == null or absf(player.global_position.x - spawns[index].x) < CLIENT_SHIFT * 0.8:
 			return false
 	return true
+
+
+func _is_contender(peer_id: int) -> bool:
+	var player_name: String = Net.players.get(peer_id, "")
+	return player_name in CONTENDERS
+
+
+func _teleport(player: Player, at: Vector3) -> void:
+	player.global_position = at
+	player.velocity = Vector3.ZERO
 
 
 func _level_players() -> Array[Player]:

@@ -1,5 +1,5 @@
 extends Node
-## Headless smoke test for day 1. Run from the project folder:
+## Headless single-player smoke test (offline peer acts as host). Run from the project folder:
 ##   godot --headless --path . res://tests/smoke_day1.tscn
 ## Prints PASS/FAIL per check and exits with code 0 only if all pass.
 
@@ -34,8 +34,8 @@ func _run() -> void:
 	_check(level.get_items().size() == 15, "15 items spawned (got %d)" % level.get_items().size())
 
 	await _check_walking(player)
-	await _check_door(level.get_doors()[0])
-	await _check_item(player, level.get_items()[0])
+	await _check_door(player, level.get_doors()[0])
+	await _check_item(player, level.get_item(0), level.get_item(14))
 	_check_flashlight(player)
 
 
@@ -56,44 +56,53 @@ func _check_walking(player: Player) -> void:
 	_check(moved > 1.0, "player walks forward (moved %.2f m)" % moved)
 
 
-func _check_door(door: Door) -> void:
-	door.set_open(true)
+func _check_door(player: Player, door: Door) -> void:
+	door.request_set_open(true)
+	await _physics_frames(10)
+	_check(not door.is_open, "host refuses a door request from far away")
+	_teleport(player, door.global_position + Vector3(1.5, 0.1, 0.5))
+	await _physics_frames(5)
+	door.request_set_open(true)
 	await _physics_frames(45)
 	_check(door.is_open and door.get_swing_angle_deg() > 80.0,
 		"door opens (angle %.1f)" % door.get_swing_angle_deg())
-	door.set_open(false)
+	door.request_set_open(false)
 	await _physics_frames(45)
 	_check(not door.is_open and absf(door.get_swing_angle_deg()) < 1.0, "door closes")
 
 
-func _check_item(player: Player, item: Item) -> void:
-	player.pick_up(item)
+func _check_item(player: Player, item: Item, far_item: Item) -> void:
+	item.request_pick_up()
 	await _physics_frames(5)
-	var hold_point := player.get_node(^"Head/Camera3D/HoldPoint") as Node3D
-	_check(player.held_item == item and item.freeze, "item picked up and frozen")
+	_check(not item.is_held(), "host refuses a pick-up from far away")
+	var spot := item.global_position
+	_teleport(player, Vector3(spot.x + 1.5, 0.1, spot.z + 1.0))
+	await _physics_frames(5)
+	item.request_pick_up()
+	await _physics_frames(5)
+	var hold_point := player.get_hold_point()
+	_check(player.held_item == item and item.freeze and item.holder_id == player.get_peer_id(),
+		"item picked up and frozen")
 	_check(item.global_position.distance_to(hold_point.global_position) < 0.05, "held item follows hold point")
-	player.pick_up(_find_other_item(item))
-	_check(player.held_item == item, "cannot hold two items")
+	far_item.request_pick_up()
+	await _physics_frames(5)
+	_check(player.held_item == item and not far_item.is_held(), "cannot hold two items")
 	player.drop_held_item()
 	await _physics_frames(60)
-	_check(player.held_item == null and not item.freeze and item.holder == null, "item dropped")
+	_check(player.held_item == null and not item.freeze and not item.is_held(), "item dropped")
 	_check(item.global_position.y > -0.5, "dropped item stays above ground")
+	_check(item.synced_transform.is_equal_approx(item.global_transform), "host publishes the resting transform")
+
+
+func _teleport(player: Player, at: Vector3) -> void:
+	player.global_position = at
+	player.velocity = Vector3.ZERO
 
 
 func _check_flashlight(player: Player) -> void:
 	var was_on := player.is_flashlight_on()
 	player.toggle_flashlight()
 	_check(player.is_flashlight_on() != was_on, "flashlight toggles")
-
-
-## Returns some other item so the two-item guard can be tested.
-func _find_other_item(current: Item) -> Item:
-	var items_root := current.get_parent()
-	for child in items_root.get_children():
-		var other := child as Item
-		if other != null and other != current:
-			return other
-	return current
 
 
 func _physics_frames(count: int) -> void:

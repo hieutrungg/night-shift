@@ -30,6 +30,8 @@ var _player: Player = null
 var _hud: Hud = null
 var _players_root: Node3D
 var _player_spawner: MultiplayerSpawner
+var _items_root: Node3D
+var _item_spawner: MultiplayerSpawner
 var _doors: Array[Door] = []
 var _items: Array[Item] = []
 var _player_spawns: Array[Vector3] = []
@@ -52,8 +54,11 @@ func _ready() -> void:
 	_geometry.name = "Geometry"
 	add_child(_geometry)
 	_build()
-	_spawn_items()
+	_setup_item_spawning()
 	_setup_player_spawning()
+	if multiplayer.is_server():
+		Net.all_players_loaded.connect(_on_all_players_loaded, CONNECT_ONE_SHOT)
+		Net.player_left.connect(_on_player_left)
 	Net.report_level_loaded()
 
 
@@ -77,6 +82,11 @@ func get_doors() -> Array[Door]:
 
 func get_items() -> Array[Item]:
 	return _items
+
+
+## Items are named by spawn index, the same on every peer.
+func get_item(index: int) -> Item:
+	return _items_root.get_node_or_null(NodePath("Item_%d" % index)) as Item
 
 
 func get_player_spawns() -> Array[Vector3]:
@@ -277,23 +287,18 @@ func _add_collider(center: Vector3, size: Vector3) -> StaticBody3D:
 	return body
 
 
-func _spawn_items() -> void:
-	var pool := _get_item_pool()
-	if pool.is_empty():
-		return
-	var rng := RandomNumberGenerator.new()
-	rng.seed = item_seed
-	var items_root := Node3D.new()
-	items_root.name = "Items"
-	add_child(items_root)
-	for index in _item_spawns.size():
-		var spawn := _item_spawns[index]
-		var item := ITEM_SCENE.instantiate() as Item
-		item.name = "Item_%d" % index
-		item.data = pool[rng.randi_range(0, pool.size() - 1)]
-		item.position = spawn
-		items_root.add_child(item)
-		_items.append(item)
+## Items live under "Items". The host spawns them; the spawner builds the same
+## item on every client from a small dictionary (index, kind, position).
+func _setup_item_spawning() -> void:
+	_items_root = Node3D.new()
+	_items_root.name = "Items"
+	add_child(_items_root)
+	_item_spawner = MultiplayerSpawner.new()
+	_item_spawner.name = "ItemSpawner"
+	add_child(_item_spawner)
+	_item_spawner.spawn_path = _item_spawner.get_path_to(_items_root)
+	_item_spawner.spawn_function = _create_item
+	_items_root.child_entered_tree.connect(_on_item_entered)
 
 
 ## Players live under "Players"; the host adds them and the spawner copies
@@ -308,9 +313,46 @@ func _setup_player_spawning() -> void:
 	_player_spawner.spawn_path = _player_spawner.get_path_to(_players_root)
 	_player_spawner.add_spawnable_scene(PLAYER_SCENE.resource_path)
 	_players_root.child_entered_tree.connect(_on_player_entered)
-	if multiplayer.is_server():
-		Net.all_players_loaded.connect(_spawn_all_players, CONNECT_ONE_SHOT)
-		Net.player_left.connect(_despawn_player)
+
+
+func _on_all_players_loaded() -> void:
+	_spawn_all_items()
+	_spawn_all_players()
+
+
+func _spawn_all_items() -> void:
+	if not multiplayer.is_server():
+		return
+	var pool := _get_item_pool()
+	if pool.is_empty():
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = item_seed
+	for index in _item_spawns.size():
+		_item_spawner.spawn({
+			"index": index,
+			"kind": rng.randi_range(0, pool.size() - 1),
+			"position": _item_spawns[index],
+		})
+
+
+func _create_item(spawn_data: Variant) -> Node:
+	var info: Dictionary = spawn_data
+	var index: int = info["index"]
+	var kind: int = info["kind"]
+	var spawn_position: Vector3 = info["position"]
+	var pool := _get_item_pool()
+	var item := ITEM_SCENE.instantiate() as Item
+	item.name = "Item_%d" % index
+	item.data = pool[clampi(kind, 0, pool.size() - 1)]
+	item.position = spawn_position
+	return item
+
+
+func _on_item_entered(node: Node) -> void:
+	var item := node as Item
+	if item != null:
+		_items.append(item)
 
 
 func _spawn_all_players() -> void:
@@ -329,7 +371,10 @@ func _spawn_all_players() -> void:
 		_players_root.add_child(player, true)
 
 
-func _despawn_player(peer_id: int) -> void:
+func _on_player_left(peer_id: int) -> void:
+	for item in _items:
+		if is_instance_valid(item) and item.holder_id == peer_id:
+			item.force_release()
 	var player := _players_root.get_node_or_null(str(peer_id))
 	if player != null:
 		player.queue_free()

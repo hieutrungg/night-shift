@@ -8,6 +8,8 @@ extends CharacterBody3D
 signal held_item_changed(item: Item)
 signal interact_prompt_changed(text: String)
 
+const GROUP: StringName = &"players"
+
 @export var walk_speed: float = 3.5
 @export var sprint_speed: float = 6.0
 @export var crouch_speed: float = 1.8
@@ -45,6 +47,7 @@ var _skip_next_mouse_motion: bool = true
 
 
 func _enter_tree() -> void:
+	add_to_group(GROUP)
 	var peer_id := get_peer_id()
 	if peer_id > 0:
 		set_multiplayer_authority(peer_id)
@@ -91,6 +94,15 @@ func _physics_process(delta: float) -> void:
 	_update_interact_prompt()
 
 
+## Finds the player node of a peer, or null (left, not spawned yet).
+static func find_by_peer(tree: SceneTree, peer_id: int) -> Player:
+	for node in tree.get_nodes_in_group(GROUP):
+		var player := node as Player
+		if player != null and player.get_peer_id() == peer_id and not player.is_queued_for_deletion():
+			return player
+	return null
+
+
 func get_peer_id() -> int:
 	return String(name).to_int()
 
@@ -107,19 +119,22 @@ func is_flashlight_on() -> bool:
 	return _flashlight.visible
 
 
-func pick_up(item: Item) -> void:
-	if held_item != null or item.holder != null:
+func get_hold_point() -> Node3D:
+	return _hold_point
+
+
+## Called by Item on every peer once the host has decided who holds it.
+func set_held_item(item: Item) -> void:
+	if held_item == item:
 		return
 	held_item = item
-	item.attach_to(self, _hold_point)
 	held_item_changed.emit(item)
 
 
+## Asks the host to drop the held item in front of the camera.
 func drop_held_item() -> void:
 	if held_item == null:
 		return
-	var item := held_item
-	held_item = null
 	var forward := -_camera.global_basis.z
 	var distance := drop_distance
 	# Don't push the item through a wall we are standing against.
@@ -127,8 +142,7 @@ func drop_held_item() -> void:
 		var hit_distance := _camera.global_position.distance_to(_interact_ray.get_collision_point())
 		distance = minf(distance, maxf(hit_distance - 0.25, 0.1))
 	var drop_transform := Transform3D(global_basis, _camera.global_position + forward * distance)
-	item.detach(drop_transform, forward * drop_push)
-	held_item_changed.emit(null)
+	held_item.request_drop(drop_transform, forward * drop_push)
 
 
 func _setup_local() -> void:

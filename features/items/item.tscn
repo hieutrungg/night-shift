@@ -3,6 +3,11 @@
 [ext_resource type="Script" path="res://features/items/item.gd" id="1_item"]
 [ext_resource type="Script" path="res://features/interaction/interactable.gd" id="2_interactable"]
 
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_item"]
+properties/0/path = NodePath(".:synced_transform")
+properties/0/spawn = false
+properties/0/replication_mode = 2
+
 [node name="Item" type="RigidBody3D"]
 freeze_mode = 1
 script = ExtResource("1_item")
@@ -14,3 +19,6 @@ script = ExtResource("1_item")
 [node name="Interactable" type="Node" parent="."]
 script = ExtResource("2_interactable")
 prompt_key = "HUD_PICK_UP"
+
+[node name="Sync" type="MultiplayerSynchronizer" parent="."]
+replication_config = SubResource("SceneReplicationConfig_item")

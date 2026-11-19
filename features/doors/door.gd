@@ -2,6 +2,8 @@ class_name Door
 extends Node3D
 ## Hinged door. The root sits at the hinge on the floor; the panel extends
 ## along local +X. Rotates the Hinge node to open.
+## The host decides: players ask with request_set_open(), the host checks
+## distance and tells every peer the result.
 
 signal toggled(is_open: bool)
 
@@ -13,6 +15,7 @@ var is_open: bool = false
 var _tween: Tween
 
 @onready var _hinge: Node3D = $Hinge
+@onready var _panel: Node3D = $Hinge/Panel
 @onready var _interactable: Interactable = $Hinge/Panel/Interactable
 
 
@@ -21,7 +24,37 @@ func _ready() -> void:
 	_update_prompt()
 
 
-func set_open(open: bool) -> void:
+## Asks the host to open or close the door for the local player.
+func request_set_open(open: bool) -> void:
+	_request_set_open.rpc_id(1, open)
+
+
+func get_swing_angle_deg() -> float:
+	return rad_to_deg(_hinge.rotation.y)
+
+
+# The wanted state (not "toggle") is sent so two players pressing at once
+# don't cancel each other out.
+@rpc("any_peer", "call_local", "reliable")
+func _request_set_open(open: bool) -> void:
+	if not multiplayer.is_server():
+		return
+	if open == is_open:
+		return
+	var player := Player.find_by_peer(get_tree(), multiplayer.get_remote_sender_id())
+	if player == null:
+		return
+	if player.global_position.distance_to(_panel.global_position) > GameConfig.INTERACT_MAX_DISTANCE:
+		return
+	_apply_open.rpc(open)
+
+
+@rpc("authority", "call_local", "reliable")
+func _apply_open(open: bool) -> void:
+	_set_open(open)
+
+
+func _set_open(open: bool) -> void:
 	if open == is_open:
 		return
 	is_open = open
@@ -37,12 +70,8 @@ func set_open(open: bool) -> void:
 	toggled.emit(is_open)
 
 
-func get_swing_angle_deg() -> float:
-	return rad_to_deg(_hinge.rotation.y)
-
-
 func _on_interacted(_player: Player) -> void:
-	set_open(not is_open)
+	request_set_open(not is_open)
 
 
 func _update_prompt() -> void:
