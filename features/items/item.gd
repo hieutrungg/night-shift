@@ -96,7 +96,7 @@ func _request_pick_up() -> void:
 	var sender := multiplayer.get_remote_sender_id()
 	var player := Player.find_by_peer(get_tree(), sender)
 	# First request wins: a second player asking for the same item is refused here.
-	if player == null or holder_id != NO_HOLDER or player.held_item != null:
+	if player == null or player.is_dead or holder_id != NO_HOLDER or player.held_item != null:
 		return
 	if player.global_position.distance_to(global_position) > GameConfig.INTERACT_MAX_DISTANCE:
 		return

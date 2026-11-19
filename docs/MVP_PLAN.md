@@ -36,6 +36,12 @@ Mục tiêu: nhóm 2–4 người chơi được qua Radmin VPN, voice qua Disco
 
 Nếu trễ: bỏ bớt phần âm thanh (ngày 6), **không bỏ buổi chơi thử**.
 
+## Trạng thái (cập nhật sau ngày 7)
+
+- Ngày 1–7: đã làm xong phần code, test tự động đạt (1 người: `tests/smoke_day1.tscn`; mạng 5 tiến trình: `tests/run_net_smoke.ps1`).
+- Đã có bản build Windows: `tests/export_build.ps1` → `build/NightShift.zip`.
+- **Chưa làm:** buổi chơi thử thật 3–4 người qua Radmin (mục tiêu ngày 6–7). Ghi kết quả vào checklist dưới đây.
+
 ## Checklist chơi thử mỗi lần
 
 - [ ] Host và 1–3 client vào được cùng trận

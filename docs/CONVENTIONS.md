@@ -176,6 +176,8 @@ Thêm:
      `godot --headless --path . res://tests/smoke_day1.tscn`
      Thay đổi về mạng thì chạy thêm bài test nhiều tiến trình (1 host, 3 client, 1 người thừa):
      `powershell -ExecutionPolicy Bypass -File tests/run_net_smoke.ps1`
+     Xuất bản build cho bạn bè (exe + LICENSES.txt + HOW_TO_PLAY.txt, nén thành `build/NightShift.zip`):
+     `powershell -ExecutionPolicy Bypass -File tests/export_build.ps1`
   4. Nói rõ người dùng cần chạy thử gì trong editor (bao nhiêu instance, bấm gì, kết quả mong đợi).
 - Báo cáo cho người dùng bằng **tiếng Việt**: đã làm gì, file nào, đã kiểm tra gì, chưa kiểm tra gì.
 - Không nói "đã chạy được" nếu chưa thực sự chạy.

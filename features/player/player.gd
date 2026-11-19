@@ -36,6 +36,8 @@ var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var _head_stand_y: float = 0.0
 var _capsule: CapsuleShape3D
 var _current_prompt: String = ""
+## Forces the prompt to be sent again, e.g. after the language changed.
+var _prompt_dirty: bool = false
 ## The first motion event after capturing the mouse is a large warp jump.
 var _skip_next_mouse_motion: bool = true
 
@@ -190,6 +192,7 @@ func drop_held_item() -> void:
 
 
 func _setup_local() -> void:
+	Settings.locale_changed.connect(_on_locale_changed)
 	_camera.current = true
 	_nameplate.visible = false
 	_capture_mouse()
@@ -283,6 +286,11 @@ func _update_interact_prompt() -> void:
 	var target := _find_interactable()
 	if target != null and target.can_interact(self):
 		prompt = target.get_prompt_text()
-	if prompt != _current_prompt:
+	if prompt != _current_prompt or _prompt_dirty:
+		_prompt_dirty = false
 		_current_prompt = prompt
 		interact_prompt_changed.emit(prompt)
+
+
+func _on_locale_changed(_locale: String) -> void:
+	_prompt_dirty = true

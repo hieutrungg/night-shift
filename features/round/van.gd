@@ -64,7 +64,7 @@ func _request_deposit() -> void:
 		return
 	var sender := multiplayer.get_remote_sender_id()
 	var player := Player.find_by_peer(get_tree(), sender)
-	if player == null or player.held_item == null:
+	if player == null or player.is_dead or player.held_item == null:
 		return
 	if distance_to(player.global_position) > GameConfig.INTERACT_MAX_DISTANCE:
 		return

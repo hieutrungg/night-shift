@@ -58,7 +58,7 @@ func _request_set_open(open: bool) -> void:
 	if open == is_open:
 		return
 	var player := Player.find_by_peer(get_tree(), multiplayer.get_remote_sender_id())
-	if player == null:
+	if player == null or player.is_dead:
 		return
 	if player.global_position.distance_to(_panel.global_position) > GameConfig.INTERACT_MAX_DISTANCE:
 		return

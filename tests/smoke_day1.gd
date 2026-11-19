@@ -215,6 +215,20 @@ func _check_monster(level: GreyboxLevel, player: Player) -> void:
 		and round_manager.end_reason == RoundManager.EndReason.ALL_DEAD and not round_manager.success,
 		"round ends as 'everyone died'")
 	_check(not level.get_van().accepting and not monster.is_awake(), "van closes and the mannequin stops")
+	await _check_dead_requests(level, player, door)
+
+
+## A dead player's requests must be refused by the host, not just by its input.
+func _check_dead_requests(level: GreyboxLevel, player: Player, open_door: Door) -> void:
+	_teleport(player, open_door.get_panel_position() + Vector3(1.0, -1.0, 0.0))
+	await _physics_frames(5)
+	open_door.request_set_open(false)
+	var item := level.get_items()[0]
+	_teleport(player, Vector3(item.global_position.x + 1.0, 0.1, item.global_position.z))
+	await _physics_frames(5)
+	item.request_pick_up()
+	await _physics_frames(5)
+	_check(open_door.is_open and not item.is_held(), "host ignores door and item requests from a dead player")
 
 
 ## Ray across the doorway, along the panel's normal, against door panels only.
