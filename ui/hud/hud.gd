@@ -7,11 +7,15 @@ extends CanvasLayer
 signal play_again_requested
 
 const SECONDS_PER_MINUTE: int = 60
+## Seconds left at which the clock beeps; it also beeps every second below FINAL_BEEP_SEC.
+const WARNING_BEEP_SECONDS: Array[int] = [60, 30]
+const FINAL_BEEP_SEC: int = 10
 
 var _held_item: Item = null
 var _round: RoundManager = null
 var _shown_seconds: int = -1
 var _spectate_target: Player = null
+var _last_beep_second: int = -1
 
 @onready var _prompt_label: Label = %PromptLabel
 @onready var _held_label: Label = %HeldLabel
@@ -30,6 +34,8 @@ var _spectate_target: Player = null
 @onready var _play_again_button: Button = %PlayAgainButton
 @onready var _result_waiting_label: Label = %ResultWaitingLabel
 @onready var _result_leave_button: Button = %ResultLeaveButton
+@onready var _sting_sound: AudioStreamPlayer = %StingSound
+@onready var _beep_sound: AudioStreamPlayer = %BeepSound
 
 
 func _ready() -> void:
@@ -38,6 +44,8 @@ func _ready() -> void:
 	_quota_label.text = ""
 	_results_panel.visible = false
 	_death_panel.visible = false
+	_sting_sound.stream = Sfx.death_sting()
+	_beep_sound.stream = Sfx.beep()
 	Settings.locale_changed.connect(_on_locale_changed)
 	_settings_button.pressed.connect(_settings_panel.open)
 	_leave_button.pressed.connect(_on_leave_pressed)
@@ -65,6 +73,10 @@ func bind_round(round_manager: RoundManager) -> void:
 	_refresh_quota()
 	if _round.phase == RoundManager.Phase.ENDED:
 		_show_results()
+
+
+func play_death_sting() -> void:
+	_sting_sound.play()
 
 
 ## Shown once this peer's player died.
@@ -147,6 +159,7 @@ func _refresh_time() -> void:
 	if seconds == _shown_seconds:
 		return
 	_shown_seconds = seconds
+	_maybe_beep(seconds)
 	@warning_ignore("integer_division")
 	var clock := "%d:%02d" % [seconds / SECONDS_PER_MINUTE, seconds % SECONDS_PER_MINUTE]
 	_time_label.text = tr("HUD_TIME_LEFT").format({"time": clock})
@@ -163,3 +176,11 @@ func _refresh_spectate() -> void:
 		return
 	var target_name: String = Net.players.get(_spectate_target.get_peer_id(), "")
 	_spectate_label.text = tr("HUD_SPECTATING").format({"name": target_name})
+
+
+func _maybe_beep(seconds: int) -> void:
+	if not _round.is_playing() or seconds == _last_beep_second or seconds <= 0:
+		return
+	if seconds in WARNING_BEEP_SECONDS or seconds <= FINAL_BEEP_SEC:
+		_last_beep_second = seconds
+		_beep_sound.play()

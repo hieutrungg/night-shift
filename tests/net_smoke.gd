@@ -24,6 +24,10 @@ const FAR_ITEM: int = 14
 const CONTENDERS: PackedStringArray = ["C1", "C2"]
 ## The host kills this client to check death sync and spectating.
 const VICTIM: String = "C3"
+## The winner keeps the item this long so every client sees who holds it.
+const WINNER_HOLD_SEC: float = 4.0
+## Frames to let audio and nodes shut down before quitting (avoids exit leaks).
+const SHUTDOWN_FRAMES: int = 30
 ## Items spawned by greybox_01 at the start of a round.
 const ITEM_COUNT: int = 15
 ## Lets clients check the result before the host starts the next round.
@@ -186,6 +190,7 @@ func _run_client_round(level: GreyboxLevel, me: Player, item: Item, i_won: bool)
 	var value := item.data.value
 	var round_manager := level.get_round()
 	if i_won:
+		await _seconds(WINNER_HOLD_SEC)
 		var van := level.get_van()
 		_teleport(me, van.global_position + Vector3(0.0, 0.1 - van.size.y * 0.5, -(van.size.z * 0.5 + 1.0)))
 		await _seconds(POSITION_SETTLE_SEC)
@@ -308,4 +313,7 @@ func _check(condition: bool, label: String) -> void:
 func _finish() -> void:
 	print("NET SMOKE %s: %s (%d failed)" % [_role, "OK" if _failures == 0 else "FAILED", _failures])
 	Net.leave()
+	get_tree().unload_current_scene()
+	for _frame in SHUTDOWN_FRAMES:
+		await get_tree().process_frame
 	get_tree().quit(0 if _failures == 0 else 1)

@@ -69,6 +69,7 @@ func get_end_reason_key() -> String:
 @rpc("authority", "call_local", "reliable")
 func _begin(duration: float, quota_value: int) -> void:
 	phase = Phase.PLAYING
+	duration_sec = duration
 	time_left = duration
 	quota = quota_value
 	collected = 0

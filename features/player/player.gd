@@ -48,6 +48,7 @@ var _skip_next_mouse_motion: bool = true
 @onready var _hold_point: Marker3D = $Head/Camera3D/HoldPoint
 @onready var _nameplate: Label3D = $Nameplate
 @onready var _sync: MultiplayerSynchronizer = $Sync
+@onready var _footsteps: Footsteps = $Footsteps
 
 
 func _enter_tree() -> void:
@@ -147,6 +148,7 @@ func die() -> void:
 	visible = false
 	_collision.set_deferred(&"disabled", true)
 	_interact_ray.enabled = false
+	_footsteps.muted = true
 	velocity = Vector3.ZERO
 	if not _current_prompt.is_empty():
 		_current_prompt = ""

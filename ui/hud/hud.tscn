@@ -255,3 +255,10 @@ text = "UI_LEAVE_GAME"
 [node name="SettingsPanel" parent="Root" instance=ExtResource("2_settings")]
 unique_name_in_owner = true
 layout_mode = 1
+
+[node name="StingSound" type="AudioStreamPlayer" parent="."]
+unique_name_in_owner = true
+
+[node name="BeepSound" type="AudioStreamPlayer" parent="."]
+unique_name_in_owner = true
+volume_db = -8.0

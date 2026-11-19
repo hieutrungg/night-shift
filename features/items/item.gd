@@ -26,6 +26,7 @@ var _default_layer: int = 1
 @onready var _mesh_instance: MeshInstance3D = $Mesh
 @onready var _collision: CollisionShape3D = $CollisionShape3D
 @onready var _interactable: Interactable = $Interactable
+@onready var _sound: AudioStreamPlayer3D = $Sound
 
 
 func _ready() -> void:
@@ -126,6 +127,8 @@ func _set_holder(peer_id: int) -> void:
 	collision_layer = 0
 	_interactable.enabled = false
 	player.set_held_item(self)
+	_sound.stream = Sfx.pickup()
+	_sound.play()
 
 
 @rpc("authority", "call_local", "reliable")
@@ -138,6 +141,8 @@ func _release(at: Transform3D, push: Vector3) -> void:
 	_interactable.enabled = true
 	if player != null and player.held_item == self:
 		player.set_held_item(null)
+	_sound.stream = Sfx.thud()
+	_sound.play()
 	if not multiplayer.is_server():
 		return
 	synced_transform = at

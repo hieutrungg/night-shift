@@ -34,6 +34,7 @@ const RESTART_SYNC_STOP_SEC: float = 0.25
 const NAV_AGENT_RADIUS: float = 0.25
 const NAV_AGENT_HEIGHT: float = 2.0
 const NAV_MAX_CLIMB: float = 0.25
+const AMBIENCE_VOLUME_DB: float = -10.0
 
 ## 0 picks new loot every round; any other value repeats the same loot.
 @export var item_seed: int = 0
@@ -51,6 +52,7 @@ var _monsters_root: Node3D
 var _monster_spawner: MultiplayerSpawner
 var _monster: Mannequin = null
 var _spectator: Spectator = null
+var _flicker: LightFlicker
 var _doors: Array[Door] = []
 var _items: Array[Item] = []
 var _player_spawns: Array[Vector3] = []
@@ -71,6 +73,7 @@ func _ready() -> void:
 	if not _is_layout_valid():
 		return
 	_create_materials()
+	_setup_atmosphere()
 	# Geometry sits under the navigation region so the host can bake it.
 	_navigation = NavigationRegion3D.new()
 	_navigation.name = "Navigation"
@@ -89,6 +92,10 @@ func _ready() -> void:
 		Net.all_players_loaded.connect(_on_all_players_loaded, CONNECT_ONE_SHOT)
 		Net.player_left.connect(_on_player_left)
 	Net.report_level_loaded()
+
+
+func _exit_tree() -> void:
+	Sfx.clear_cache()
 
 
 ## The player controlled on this machine (null until spawned).
@@ -129,6 +136,10 @@ func get_round() -> RoundManager:
 ## Null when the layout has no van cells.
 func get_van() -> Van:
 	return _van
+
+
+func get_light_flicker() -> LightFlicker:
+	return _flicker
 
 
 ## Null until the host spawned it (or when the layout has no M cell).
@@ -177,6 +188,11 @@ func _set_player_dead(peer_id: int) -> void:
 	if player == null:
 		return
 	player.die()
+	if player == _player:
+		if _hud != null:
+			_hud.play_death_sting()
+	else:
+		Sfx.play_at(self, Sfx.thud(), player.global_position)
 	if player == _player and _spectator == null:
 		_spectator = Spectator.new()
 		_spectator.name = "Spectator"
@@ -333,6 +349,7 @@ func _add_ceiling_light(center: Vector3) -> void:
 	light.omni_range = 6.0
 	light.shadow_enabled = true
 	add_child(light)
+	_flicker.add_light(light)
 
 
 func _add_moon() -> void:
@@ -402,6 +419,8 @@ func _setup_round() -> void:
 	add_child(_round)
 	_round.round_started.connect(_on_round_started)
 	_round.round_ended.connect(_on_round_ended)
+	_round.collected_changed.connect(_on_collected_changed)
+	_flicker.round_manager = _round
 	if _van != null and multiplayer.is_server():
 		_van.item_deposited.connect(_on_item_deposited)
 
@@ -516,6 +535,7 @@ func _count_items_left() -> int:
 func _on_round_started(_duration_sec: float, _quota: int) -> void:
 	if _van != null:
 		_van.accepting = true
+		_van.play_horn()
 	if get_monster() != null:
 		_monster.hunting = true
 
@@ -523,6 +543,7 @@ func _on_round_started(_duration_sec: float, _quota: int) -> void:
 func _on_round_ended(_success: bool, _collected: int, _quota: int) -> void:
 	if _van != null:
 		_van.accepting = false
+		_van.play_horn()
 	if get_monster() != null:
 		_monster.hunting = false
 
@@ -608,3 +629,21 @@ func _on_monster_entered(node: Node) -> void:
 	var monster := node as Mannequin
 	if monster != null:
 		_monster = monster
+		_flicker.monster = monster
+
+
+func _setup_atmosphere() -> void:
+	_flicker = LightFlicker.new()
+	_flicker.name = "LightFlicker"
+	add_child(_flicker)
+	var ambience := AudioStreamPlayer.new()
+	ambience.name = "Ambience"
+	ambience.stream = Sfx.ambience()
+	ambience.volume_db = AMBIENCE_VOLUME_DB
+	add_child(ambience)
+	ambience.play()
+
+
+func _on_collected_changed(collected: int, _quota: int) -> void:
+	if collected > 0 and _van != null:
+		_van.play_deposit()

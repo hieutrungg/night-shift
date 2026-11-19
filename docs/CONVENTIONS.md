@@ -123,6 +123,7 @@ Thêm:
 - Khoảng cách tối đa host chấp nhận yêu cầu mở cửa/nhặt đồ: `GameConfig.INTERACT_MAX_DISTANCE`. Tìm node người chơi theo peer id bằng `Player.find_by_peer()`.
 - Lớp vật lý (`GameConfig.LAYER_*`, tên trong `project.godot`): 1 `world`, 2 `doors`, 3 `items`. Người chơi, đồ vật và tia tương tác va chạm cả 3 lớp; ma-nơ-canh chỉ va chạm `world` (nó tự mở cửa khi đến gần và đi xuyên qua đồ). Mọi thứ mới phải chọn lớp rõ ràng.
 - Cái chết do host quyết định: `GreyboxLevel.kill_player(peer_id)`. Người chết chuyển sang chế độ xem (`Spectator`); cả đội chết thì vòng kết thúc.
+- Hiệu ứng không khí phải giống nhau trên mọi máy nhưng không tốn băng thông: tính từ dữ liệu đã đồng bộ (thời gian vòng, vị trí quái), không dùng `randf()`. Ví dụ: `levels/light_flicker.gd`.
 - Dữ liệu tần suất cao (vị trí) dùng `unreliable` / `unreliable_ordered`. Sự kiện (nhặt đồ, chết, kết thúc vòng) dùng `reliable`.
 - Không gửi `Object`/`Node` qua RPC; gửi id, `NodePath` hoặc giá trị đơn giản.
 - Code chỉ host được chạy phải có guard `if not multiplayer.is_server(): return` ở đầu.
@@ -153,6 +154,7 @@ Thêm:
 - Mỗi asset bên thứ ba phải có một dòng trong `CREDITS.md`: tên, tác giả, link, giấy phép.
 - Không tự tải hay thêm asset, addon, plugin. Đề xuất cho người dùng trước.
 - MVP dùng hình khối (CSG / MeshInstance3D primitive). Không cần Blender.
+- Âm thanh MVP được tổng hợp bằng code trong `core/sfx.gd` (không có file âm thanh, không cần giấy phép). Muốn thay bằng file thật: đề xuất asset cho người dùng trước, ghi vào `CREDITS.md`, rồi cho hàm tương ứng trong `Sfx` trả về stream đã load.
 
 ---
 

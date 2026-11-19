@@ -19,10 +19,12 @@ var _tween: Tween
 @onready var _hinge: Node3D = $Hinge
 @onready var _panel: Node3D = $Hinge/Panel
 @onready var _interactable: Interactable = $Hinge/Panel/Interactable
+@onready var _sound: AudioStreamPlayer3D = $Hinge/Panel/Sound
 
 
 func _ready() -> void:
 	add_to_group(GROUP)
+	_sound.stream = Sfx.door_creak()
 	_interactable.interacted.connect(_on_interacted)
 	_update_prompt()
 
@@ -80,6 +82,9 @@ func _set_open(open: bool) -> void:
 	var target_angle := deg_to_rad(open_angle_deg) if is_open else 0.0
 	_tween.tween_property(_hinge, "rotation:y", target_angle, swing_time) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	# Closing creaks lower than opening.
+	_sound.pitch_scale = 1.0 if is_open else 0.8
+	_sound.play()
 	_update_prompt()
 	toggled.emit(is_open)
 

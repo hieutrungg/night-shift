@@ -15,6 +15,8 @@ var accepting: bool = false
 @onready var _mesh_instance: MeshInstance3D = $Mesh
 @onready var _collision: CollisionShape3D = $CollisionShape3D
 @onready var _interactable: Interactable = $Interactable
+@onready var _deposit_sound: AudioStreamPlayer3D = $DepositSound
+@onready var _horn_sound: AudioStreamPlayer3D = $HornSound
 
 
 func _ready() -> void:
@@ -30,6 +32,17 @@ func _ready() -> void:
 	_collision.shape = shape
 	_interactable.condition = _can_deposit
 	_interactable.interacted.connect(_on_interacted)
+	_deposit_sound.stream = Sfx.deposit()
+	_horn_sound.stream = Sfx.horn()
+
+
+## Local feedback; the level calls these on every peer.
+func play_deposit() -> void:
+	_deposit_sound.play()
+
+
+func play_horn() -> void:
+	_horn_sound.play()
 
 
 ## Asks the host to load the local player's held item into the van.

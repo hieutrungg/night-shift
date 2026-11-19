@@ -6,6 +6,9 @@ extends Node
 const LEVEL_SCENE: PackedScene = preload("res://levels/greybox_01/greybox_01.tscn")
 ## Ten seconds of physics for the mannequin to reach the next room.
 const MONSTER_KILL_FRAMES: int = 600
+const SHUTDOWN_FRAMES: int = 30
+## Up to five seconds for a dropped item to stop rolling.
+const ITEM_SETTLE_FRAMES: int = 300
 
 var _failures: int = 0
 
@@ -13,6 +16,10 @@ var _failures: int = 0
 func _ready() -> void:
 	await _run()
 	print("SMOKE DAY 1: %s (%d failed)" % ["OK" if _failures == 0 else "FAILED", _failures])
+	# Unload the level first so no sound is still playing when the engine shuts down.
+	for child in get_children():
+		child.queue_free()
+	await _physics_frames(SHUTDOWN_FRAMES)
 	get_tree().quit(0 if _failures == 0 else 1)
 
 
@@ -20,6 +27,7 @@ func _run() -> void:
 	_check(GameConfig.MIN_PLAYERS == 2 and GameConfig.MAX_PLAYERS == 4, "player limits are 2..4")
 	_check_translations()
 	_check_every_key_translated()
+	_check_sounds()
 
 	# Offline peer acts as host (id 1); register it so the level spawns one player.
 	Net.players[1] = "Tester"
@@ -72,6 +80,19 @@ func _check_every_key_translated() -> void:
 	_check(missing.is_empty(), "every key has en and vi (missing: %s)" % ", ".join(missing))
 
 
+func _check_sounds() -> void:
+	var one_shots: Array[AudioStreamWAV] = [Sfx.footstep(), Sfx.door_creak(), Sfx.pickup(), Sfx.thud(),
+		Sfx.deposit(), Sfx.horn(), Sfx.beep(), Sfx.death_sting()]
+	var loops: Array[AudioStreamWAV] = [Sfx.mannequin_scrape(), Sfx.ambience()]
+	var ok := true
+	for stream in one_shots:
+		ok = ok and stream.data.size() > 0 and stream.loop_mode == AudioStreamWAV.LOOP_DISABLED
+	for stream in loops:
+		ok = ok and stream.data.size() > 0 and stream.loop_mode == AudioStreamWAV.LOOP_FORWARD
+	_check(ok, "all %d generated sounds are valid" % (one_shots.size() + loops.size()))
+	_check(Sfx.footstep() == one_shots[0], "sounds are generated once and cached")
+
+
 func _check_walking(player: Player) -> void:
 	var start := player.global_position
 	Input.action_press(InputActions.MOVE_FORWARD)
@@ -79,6 +100,8 @@ func _check_walking(player: Player) -> void:
 	Input.action_release(InputActions.MOVE_FORWARD)
 	var moved := start.distance_to(player.global_position)
 	_check(moved > 1.0, "player walks forward (moved %.2f m)" % moved)
+	var footsteps := player.get_node(^"Footsteps") as Footsteps
+	_check(footsteps != null and footsteps.steps_played > 0, "walking plays footsteps")
 
 
 func _check_door(player: Player, door: Door) -> void:
@@ -119,6 +142,12 @@ func _check_item(player: Player, item: Item, far_item: Item) -> void:
 	await _physics_frames(60)
 	_check(player.held_item == null and not item.freeze and not item.is_held(), "item dropped")
 	_check(item.global_position.y > -0.5, "dropped item stays above ground")
+	# Some loot tumbles for a while; compare once it has settled.
+	for _frame in ITEM_SETTLE_FRAMES:
+		if item.sleeping:
+			break
+		await get_tree().physics_frame
+	await _physics_frames(2)
 	_check(item.synced_transform.is_equal_approx(item.global_transform), "host publishes the resting transform")
 
 
@@ -163,14 +192,22 @@ func _check_monster(level: GreyboxLevel, player: Player) -> void:
 	await _physics_frames(60)
 	_check(monster.is_awake() and monster.is_seen, "awake mannequin knows it is watched")
 	_check(monster.global_position.distance_to(start) < 0.1, "mannequin freezes while watched")
+	_check(not monster.is_moving(), "frozen mannequin is silent")
 
 	# Room next door, wall in between: it must path through the closed door.
 	var door := level.get_node_or_null(^"Door_28_4") as Door
 	_teleport(player, Vector3(23.5, 0.1, 4.5))
+	var flicker := level.get_light_flicker()
+	var heard_moving := false
+	var saw_flicker := false
 	for _frame in MONSTER_KILL_FRAMES:
 		if player.is_dead:
 			break
+		heard_moving = heard_moving or monster.is_moving()
+		saw_flicker = saw_flicker or flicker.count_dimmed_near(monster.global_position, LightFlicker.MONSTER_RANGE) > 0
 		await get_tree().physics_frame
+	_check(heard_moving, "moving mannequin is flagged (scrape sound)")
+	_check(saw_flicker, "lights near the moving mannequin flicker")
 	_check(player.is_dead and not player.visible, "unseen mannequin reaches and kills the player")
 	_check(door != null and door.is_open, "mannequin pushed the closed door open")
 	await _physics_frames(2)

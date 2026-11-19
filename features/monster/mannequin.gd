@@ -12,6 +12,9 @@ const SAMPLE_HEIGHTS: Array[float] = [0.3, 1.0, 1.7]
 ## Stops chasing a target this close; the kill check takes over.
 const ARRIVE_DISTANCE: float = 0.05
 const MAX_KILL_HEIGHT_DIFF: float = 1.5
+## Remote positions arrive in steps; keep "moving" true briefly between them.
+const MOVING_HOLD_SEC: float = 0.25
+const MOVING_MIN_SPEED: float = 0.5
 
 @export var move_speed: float = 7.0
 ## Horizontal distance at which it opens a closed door in its way.
@@ -30,16 +33,39 @@ var is_seen: bool = false
 
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var _seen_cos: float = 0.0
+var _last_position: Vector3 = Vector3.ZERO
+var _moving_for: float = 0.0
+var _scrape_on: bool = false
 
 @onready var _agent: NavigationAgent3D = $NavigationAgent3D
+@onready var _scrape: AudioStreamPlayer3D = $Scrape
 
 
 func _ready() -> void:
 	_seen_cos = cos(deg_to_rad(seen_half_angle_deg))
 	# Pass through door panels (they would wedge it); _open_nearby_doors opens them.
 	collision_mask = GameConfig.LAYER_WORLD
+	_scrape.stream = Sfx.mannequin_scrape()
+	_last_position = global_position
 	if not multiplayer.is_server():
 		set_physics_process(false)
+
+
+func _process(delta: float) -> void:
+	# Runs on every peer from the synced position, so clients hear it too.
+	var moved := global_position - _last_position
+	_last_position = global_position
+	moved.y = 0.0
+	if delta > 0.0 and moved.length() / delta > MOVING_MIN_SPEED:
+		_moving_for = MOVING_HOLD_SEC
+	else:
+		_moving_for = maxf(_moving_for - delta, 0.0)
+	if is_moving() != _scrape_on:
+		_scrape_on = is_moving()
+		if _scrape_on:
+			_scrape.play()
+		else:
+			_scrape.stop()
 
 
 func _physics_process(delta: float) -> void:
@@ -60,6 +86,11 @@ func _physics_process(delta: float) -> void:
 
 func is_awake() -> bool:
 	return hunting and asleep_for <= 0.0
+
+
+## True on every peer while it is visibly moving (drives sound and light flicker).
+func is_moving() -> bool:
+	return _moving_for > 0.0
 
 
 func _chase() -> void:

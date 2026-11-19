@@ -33,3 +33,6 @@ shape = SubResource("BoxShape3D_panel")
 [node name="Interactable" type="Node" parent="Hinge/Panel"]
 script = ExtResource("2_interactable")
 prompt_key = "HUD_OPEN_DOOR"
+
+[node name="Sound" type="AudioStreamPlayer3D" parent="Hinge/Panel"]
+volume_db = -4.0
