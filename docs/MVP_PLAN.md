@@ -2,6 +2,14 @@
 
 Mục tiêu: nhóm 2–4 người chơi được qua Radmin VPN, voice qua Discord. Hình khối, chưa cần đẹp.
 
+## Số người chơi — luật cứng
+
+- **Tối thiểu 2, tối đa 4 người** (tính cả host). Không có chế độ chơi một mình, không có ngoại lệ.
+- Host không bắt đầu vòng chơi được khi chưa đủ 2 người.
+- Người thứ 5 kết nối vào sẽ bị từ chối kèm thông báo "phòng đã đầy".
+- Hai con số này chỉ được khai báo ở một chỗ: `core/game_config.gd` (`MIN_PLAYERS`, `MAX_PLAYERS`).
+- Ngày 1 chưa có mạng nên bản thử chạy một người chỉ để kiểm tra điều khiển; luật 2–4 người bắt đầu áp dụng từ ngày 2.
+
 ## Phạm vi MVP
 
 - Map khối hộp, khoảng 12–20 phòng, 2 tầng.
@@ -19,7 +27,7 @@ Mục tiêu: nhóm 2–4 người chơi được qua Radmin VPN, voice qua Disco
 | Ngày | Việc | Xong khi |
 |---|---|---|
 | 1 | Quy ước, project, Git, i18n, điều khiển người chơi, đèn pin, cửa, nhặt đồ, map khối hộp | Chơi một mình đi lại, mở cửa, nhặt đồ được |
-| 2 | Menu Host/Join bằng IP, spawn người chơi, đồng bộ chuyển động | 2 instance trên một máy thấy nhau di chuyển |
+| 2 | Menu Host/Join bằng IP, phòng chờ (lobby), spawn người chơi, đồng bộ chuyển động | 2 instance trên một máy thấy nhau di chuyển. Instance thứ 5 bị từ chối. Host không bấm Start được khi chỉ có 1 người |
 | 3 | Đồ vật và cửa do host quyết định | 2 người cùng nhặt 1 món: chỉ 1 người lấy được. Thử qua Radmin với 1 bạn |
 | 4 | Vòng chơi: đồng hồ, chỉ tiêu, xe, màn kết quả, chơi lại; nút chọn ngôn ngữ | Chơi trọn 1 vòng |
 | 5 | Quái ma-nơ-canh, cái chết, chế độ xem | Quái giết được người, vòng kết thúc đúng |
@@ -31,6 +39,7 @@ Nếu trễ: bỏ bớt phần âm thanh (ngày 6), **không bỏ buổi chơi t
 ## Checklist chơi thử mỗi lần
 
 - [ ] Host và 1–3 client vào được cùng trận
+- [ ] Người thứ 5 bị từ chối; 1 người không bắt đầu được vòng chơi
 - [ ] Mọi người thấy nhau di chuyển mượt
 - [ ] Nhặt/thả đồ không bị nhân đôi, không mất đồ
 - [ ] Cửa đóng/mở giống nhau trên mọi máy

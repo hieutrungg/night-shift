@@ -44,8 +44,9 @@ Gom theo tính năng: scene `.tscn` và script `.gd` của cùng một thứ n�
 
 ```
 res://
-  core/            Autoload dùng toàn game (Settings, Net, Locale...)
+  core/            Autoload và hằng số dùng toàn game (Settings, GameConfig, Net...)
   features/
+    interaction/   Interactable: thành phần gắn vào thứ người chơi bấm E được
     player/        player.tscn, player.gd, flashlight...
     items/         đồ nhặt được
     doors/
@@ -59,6 +60,7 @@ res://
     settings/
   i18n/            translations.csv + font
   assets/          asset bên thứ ba (models, audio, fonts) — phải có trong CREDITS.md
+  tests/           scene kiểm tra tự động chạy headless
   docs/
 ```
 
@@ -107,6 +109,11 @@ Mẫu bắt buộc:
 2. Host **kiểm tra** (`multiplayer.is_server()`), dùng `multiplayer.get_remote_sender_id()` để biết ai gửi, từ chối nếu không hợp lệ (quá xa, đồ đã có người cầm, người đã chết...).
 3. Host **phát kết quả**: `@rpc("authority", "call_local", "reliable")` tới mọi người.
 
+### Số người chơi (luật cứng)
+- **Tối thiểu 2, tối đa 4**, tính cả host. Dùng `GameConfig.MIN_PLAYERS` / `GameConfig.MAX_PLAYERS` trong `core/game_config.gd`; không viết số 2 hay 4 ở chỗ khác.
+- Tạo server với `max_clients = GameConfig.MAX_PLAYERS - 1` (ENet không tính host), và host vẫn kiểm tra lại số người khi có peer mới, ngắt kết nối nếu vượt.
+- Host chỉ bắt đầu vòng chơi khi số người >= `MIN_PLAYERS`. Không thêm chế độ chơi một mình hay cờ bỏ qua luật này.
+
 Thêm:
 - Node người chơi tên là chính peer id (`str(peer_id)`), authority của node đó (chỉ phần chuyển động) là peer id đó.
 - Spawn người chơi và đồ vật bằng `MultiplayerSpawner`. Đồng bộ vị trí liên tục bằng `MultiplayerSynchronizer`, không tự gửi RPC mỗi frame.
@@ -147,7 +154,7 @@ Thêm:
 
 - **Không cài, tải, nâng cấp phần mềm, addon, plugin hay package** khi chưa được người dùng đồng ý rõ ràng.
 - Không sửa PATH, registry, firewall hay thiết lập hệ thống.
-- **Không commit, không push** trừ khi người dùng yêu cầu. Người dùng tự review và commit.
+- **Không commit, không push** trừ khi người dùng yêu cầu. Khi được yêu cầu: tác giả là người dùng (`hieutrungg`), **không thêm dòng `Co-Authored-By` hay ghi công AI** vào commit/PR.
 - Mỗi task một nhánh Git (`feat/...`, `fix/...`). Hai agent không sửa cùng một file cùng lúc.
 - Chỉ sửa file liên quan đến task. Muốn đổi `project.godot`, file quy ước này hoặc kiến trúc mạng thì nói rõ trong báo cáo.
 - Thay đổi nhỏ, mỗi lần một bước chạy thử được.
@@ -156,6 +163,8 @@ Thêm:
      `godot --headless --path . --import`
   2. Kiểm tra cú pháp một script:
      `godot --headless --path . --check-only --script res://duong/dan/file.gd`
-  3. Nói rõ người dùng cần chạy thử gì trong editor (bao nhiêu instance, bấm gì, kết quả mong đợi).
+  3. Chạy các scene kiểm tra trong `tests/` (in `PASS`/`FAIL`, thoát với mã 0 nếu đạt):
+     `godot --headless --path . res://tests/smoke_day1.tscn`
+  4. Nói rõ người dùng cần chạy thử gì trong editor (bao nhiêu instance, bấm gì, kết quả mong đợi).
 - Báo cáo cho người dùng bằng **tiếng Việt**: đã làm gì, file nào, đã kiểm tra gì, chưa kiểm tra gì.
 - Không nói "đã chạy được" nếu chưa thực sự chạy.
