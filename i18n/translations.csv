@@ -10,3 +10,26 @@ ITEM_RADIO,Old radio,Radio cũ
 ITEM_TOOLBOX,Toolbox,Hộp đồ nghề
 ITEM_LAMP,Desk lamp,Đèn bàn
 ITEM_VASE,Ceramic vase,Bình gốm
+UI_HOST,Host game,Tạo phòng
+UI_JOIN,Join,Vào phòng
+UI_QUIT,Quit,Thoát
+UI_NAME_PLACEHOLDER,Your name,Tên của bạn
+UI_ADDRESS_PLACEHOLDER,Host IP (e.g. 26.x.x.x),IP của chủ phòng (vd. 26.x.x.x)
+UI_LOBBY,Lobby,Phòng chờ
+UI_START,Start,Bắt đầu
+UI_LEAVE,Leave,Rời phòng
+UI_LEAVE_GAME,Leave game,Rời trận
+UI_RESUME_HINT,Click to resume,Bấm chuột để chơi tiếp
+UI_TAG_HOST,(host),(chủ phòng)
+UI_TAG_YOU,(you),(bạn)
+UI_LOBBY_STATUS,"Players: {count}/{max} · at least {min} needed to start","Người chơi: {count}/{max} · cần ít nhất {min} người để bắt đầu"
+UI_WAITING_FOR_HOST,Waiting for the host to start…,Đang chờ chủ phòng bắt đầu…
+UI_YOUR_ADDRESSES,"Share one of these IPs with your friends: {addresses}","Gửi bạn bè một trong các IP sau: {addresses}"
+UI_DEFAULT_PLAYER_NAME,Player {number},Người chơi {number}
+MSG_CONNECTING,Connecting…,Đang kết nối…
+MSG_HOST_LEFT,The host left the game.,Chủ phòng đã thoát.
+ERR_ROOM_FULL,The room is full (max {max} players).,Phòng đã đầy (tối đa {max} người).
+ERR_GAME_IN_PROGRESS,The game has already started.,Trận đã bắt đầu rồi.
+ERR_CONNECT_FAILED,Could not connect. Check the IP and that the host has created a room.,Không kết nối được. Kiểm tra IP và chủ phòng đã tạo phòng chưa.
+ERR_HOST_FAILED,"Could not host on port {port}: {error}","Không tạo được phòng ở cổng {port}: {error}"
+ERR_INVALID_ADDRESS,Enter the host's IP address.,Hãy nhập IP của chủ phòng.

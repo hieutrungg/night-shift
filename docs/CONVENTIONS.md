@@ -98,7 +98,7 @@ Theo GDScript style guide chính thức. Các điểm bắt buộc:
 | Host quyết định | Client tự quyết |
 |---|---|
 | Nhặt/thả/vị trí đồ vật | Chuyển động và hướng nhìn của chính mình |
-| Cửa, điện, đèn | Bật/tắt đèn pin (gửi yêu cầu, host phát lại) |
+| Cửa, điện, đèn | Bật/tắt đèn pin và ngồi (đồng bộ qua `MultiplayerSynchronizer` của người chơi) |
 | Máu, cái chết | Camera, UI, âm thanh cục bộ |
 | Quái: AI, vị trí, ai đang nhìn nó | |
 | Đồng hồ, chỉ tiêu, kết quả vòng | |
@@ -111,7 +111,7 @@ Mẫu bắt buộc:
 
 ### Số người chơi (luật cứng)
 - **Tối thiểu 2, tối đa 4**, tính cả host. Dùng `GameConfig.MIN_PLAYERS` / `GameConfig.MAX_PLAYERS` trong `core/game_config.gd`; không viết số 2 hay 4 ở chỗ khác.
-- Tạo server với `max_clients = GameConfig.MAX_PLAYERS - 1` (ENet không tính host), và host vẫn kiểm tra lại số người khi có peer mới, ngắt kết nối nếu vượt.
+- Tạo server với `max_clients = GameConfig.MAX_PLAYERS` (dư 1 chỗ so với số client thật): người thừa vẫn kết nối được để host gửi lý do `ERR_ROOM_FULL` rồi ngắt sau `Net.KICK_DELAY_SEC`. Nếu để ENet tự từ chối, người thừa chỉ thấy kết nối bị treo đến khi hết thời gian chờ. Việc nhận/từ chối nằm trong `core/net.gd` (`_admission_problem`).
 - Host chỉ bắt đầu vòng chơi khi số người >= `MIN_PLAYERS`. Không thêm chế độ chơi một mình hay cờ bỏ qua luật này.
 
 Thêm:
@@ -165,6 +165,8 @@ Thêm:
      `godot --headless --path . --check-only --script res://duong/dan/file.gd`
   3. Chạy các scene kiểm tra trong `tests/` (in `PASS`/`FAIL`, thoát với mã 0 nếu đạt):
      `godot --headless --path . res://tests/smoke_day1.tscn`
+     Thay đổi về mạng thì chạy thêm bài test nhiều tiến trình (1 host, 3 client, 1 người thừa):
+     `powershell -ExecutionPolicy Bypass -File tests/run_net_smoke.ps1`
   4. Nói rõ người dùng cần chạy thử gì trong editor (bao nhiêu instance, bấm gì, kết quả mong đợi).
 - Báo cáo cho người dùng bằng **tiếng Việt**: đã làm gì, file nào, đã kiểm tra gì, chưa kiểm tra gì.
 - Không nói "đã chạy được" nếu chưa thực sự chạy.

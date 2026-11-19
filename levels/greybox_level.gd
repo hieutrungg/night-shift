@@ -27,6 +27,9 @@ const HUD_SCENE: PackedScene = preload("res://ui/hud/hud.tscn")
 
 var _rows: PackedStringArray = []
 var _player: Player = null
+var _hud: Hud = null
+var _players_root: Node3D
+var _player_spawner: MultiplayerSpawner
 var _doors: Array[Door] = []
 var _items: Array[Item] = []
 var _player_spawns: Array[Vector3] = []
@@ -50,11 +53,22 @@ func _ready() -> void:
 	add_child(_geometry)
 	_build()
 	_spawn_items()
-	_spawn_local_player()
+	_setup_player_spawning()
+	Net.report_level_loaded()
 
 
+## The player controlled on this machine (null until spawned).
 func get_player() -> Player:
 	return _player
+
+
+func get_players() -> Array[Player]:
+	var result: Array[Player] = []
+	for child in _players_root.get_children():
+		var player := child as Player
+		if player != null and not player.is_queued_for_deletion():
+			result.append(player)
+	return result
 
 
 func get_doors() -> Array[Door]:
@@ -182,6 +196,8 @@ func _is_wall(col: int, row: int) -> bool:
 
 func _add_door(col: int, row: int) -> void:
 	var door := DOOR_SCENE.instantiate() as Door
+	# Stable names give every peer the same node path for door RPCs.
+	door.name = "Door_%d_%d" % [col, row]
 	var x0 := col * CELL
 	var z0 := row * CELL
 	if _is_wall(col - 1, row) and _is_wall(col + 1, row):
@@ -270,22 +286,64 @@ func _spawn_items() -> void:
 	var items_root := Node3D.new()
 	items_root.name = "Items"
 	add_child(items_root)
-	for spawn in _item_spawns:
+	for index in _item_spawns.size():
+		var spawn := _item_spawns[index]
 		var item := ITEM_SCENE.instantiate() as Item
+		item.name = "Item_%d" % index
 		item.data = pool[rng.randi_range(0, pool.size() - 1)]
 		item.position = spawn
 		items_root.add_child(item)
 		_items.append(item)
 
 
-## Day 1 only: one local player. Day 2 replaces this with networked spawning.
-func _spawn_local_player() -> void:
-	if _player_spawns.is_empty():
-		push_error("Layout has no player spawn (P).")
+## Players live under "Players"; the host adds them and the spawner copies
+## them to every client.
+func _setup_player_spawning() -> void:
+	_players_root = Node3D.new()
+	_players_root.name = "Players"
+	add_child(_players_root)
+	_player_spawner = MultiplayerSpawner.new()
+	_player_spawner.name = "PlayerSpawner"
+	add_child(_player_spawner)
+	_player_spawner.spawn_path = _player_spawner.get_path_to(_players_root)
+	_player_spawner.add_spawnable_scene(PLAYER_SCENE.resource_path)
+	_players_root.child_entered_tree.connect(_on_player_entered)
+	if multiplayer.is_server():
+		Net.all_players_loaded.connect(_spawn_all_players, CONNECT_ONE_SHOT)
+		Net.player_left.connect(_despawn_player)
+
+
+func _spawn_all_players() -> void:
+	if not multiplayer.is_server():
 		return
-	_player = PLAYER_SCENE.instantiate() as Player
-	_player.position = _player_spawns[0]
-	add_child(_player)
-	var hud := HUD_SCENE.instantiate() as Hud
-	add_child(hud)
-	hud.bind_player(_player)
+	if _player_spawns.size() < GameConfig.MAX_PLAYERS:
+		push_error("Layout needs %d player spawns (P)." % GameConfig.MAX_PLAYERS)
+		return
+	var peer_ids: Array[int] = []
+	peer_ids.assign(Net.players.keys())
+	peer_ids.sort()
+	for index in peer_ids.size():
+		var player := PLAYER_SCENE.instantiate() as Player
+		player.name = str(peer_ids[index])
+		player.position = _player_spawns[index]
+		_players_root.add_child(player, true)
+
+
+func _despawn_player(peer_id: int) -> void:
+	var player := _players_root.get_node_or_null(str(peer_id))
+	if player != null:
+		player.queue_free()
+
+
+func _on_player_entered(node: Node) -> void:
+	var player := node as Player
+	if player == null or player.get_peer_id() != multiplayer.get_unique_id():
+		return
+	_player = player
+	if _hud == null:
+		_hud = HUD_SCENE.instantiate() as Hud
+		add_child(_hud)
+	# Wait until the player's own _ready has run so its nodes exist.
+	if not player.is_node_ready():
+		await player.ready
+	_hud.bind_player(player)

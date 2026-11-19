@@ -9,6 +9,7 @@ const SECTION: String = "settings"
 var locale: String = GameConfig.DEFAULT_LOCALE
 var mouse_sensitivity: float = 0.0025
 var master_volume_db: float = 0.0
+var player_name: String = ""
 
 
 func _ready() -> void:
@@ -38,6 +39,11 @@ func set_master_volume_db(value: float) -> void:
 	save_settings()
 
 
+func set_player_name(value: String) -> void:
+	player_name = value.strip_edges()
+	save_settings()
+
+
 func load_settings() -> void:
 	var config := ConfigFile.new()
 	if config.load(SAVE_PATH) != OK:
@@ -47,6 +53,7 @@ func load_settings() -> void:
 		locale = saved_locale
 	mouse_sensitivity = config.get_value(SECTION, "mouse_sensitivity", mouse_sensitivity)
 	master_volume_db = config.get_value(SECTION, "master_volume_db", master_volume_db)
+	player_name = config.get_value(SECTION, "player_name", player_name)
 
 
 func save_settings() -> void:
@@ -54,6 +61,7 @@ func save_settings() -> void:
 	config.set_value(SECTION, "locale", locale)
 	config.set_value(SECTION, "mouse_sensitivity", mouse_sensitivity)
 	config.set_value(SECTION, "master_volume_db", master_volume_db)
+	config.set_value(SECTION, "player_name", player_name)
 	var error := config.save(SAVE_PATH)
 	if error != OK:
 		push_warning("Could not save settings: %s" % error_string(error))

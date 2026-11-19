@@ -15,6 +15,23 @@ material = SubResource("StandardMaterial3D_body")
 radius = 0.35
 height = 1.8
 
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_player"]
+properties/0/path = NodePath(".:position")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:rotation")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+properties/2/path = NodePath("Head:rotation")
+properties/2/spawn = true
+properties/2/replication_mode = 1
+properties/3/path = NodePath(".:crouching")
+properties/3/spawn = true
+properties/3/replication_mode = 2
+properties/4/path = NodePath("Head/Camera3D/Flashlight:visible")
+properties/4/spawn = true
+properties/4/replication_mode = 2
+
 [node name="Player" type="CharacterBody3D"]
 script = ExtResource("1_player")
 
@@ -27,11 +44,17 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
 cast_shadow = 0
 mesh = SubResource("CapsuleMesh_body")
 
+[node name="Nameplate" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.15, 0)
+auto_translate_mode = 2
+billboard = 1
+font_size = 40
+outline_size = 10
+
 [node name="Head" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
 
 [node name="Camera3D" type="Camera3D" parent="Head"]
-current = true
 fov = 75.0
 
 [node name="Flashlight" type="SpotLight3D" parent="Head/Camera3D"]
@@ -47,3 +70,6 @@ target_position = Vector3(0, 0, -2.2)
 
 [node name="HoldPoint" type="Marker3D" parent="Head/Camera3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.35, -0.35, -0.7)
+
+[node name="Sync" type="MultiplayerSynchronizer" parent="."]
+replication_config = SubResource("SceneReplicationConfig_player")

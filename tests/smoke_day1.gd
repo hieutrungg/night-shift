@@ -18,6 +18,8 @@ func _run() -> void:
 	_check(GameConfig.MIN_PLAYERS == 2 and GameConfig.MAX_PLAYERS == 4, "player limits are 2..4")
 	_check_translations()
 
+	# Offline peer acts as host (id 1); register it so the level spawns one player.
+	Net.players[1] = "Tester"
 	var level := LEVEL_SCENE.instantiate() as GreyboxLevel
 	add_child(level)
 	await _physics_frames(30)

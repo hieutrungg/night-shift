@@ -2,6 +2,8 @@ class_name Player
 extends CharacterBody3D
 ## First-person controller: movement, mouse look, crouch, flashlight,
 ## interaction and carrying one item.
+## The node is named after its peer id; that peer owns its movement and the
+## MultiplayerSynchronizer copies it to everyone else.
 
 signal held_item_changed(item: Item)
 signal interact_prompt_changed(text: String)
@@ -18,36 +20,59 @@ signal interact_prompt_changed(text: String)
 @export var drop_push: float = 1.5
 
 var held_item: Item = null
+## Replicated so other players see us crouch.
+var crouching: bool = false:
+	set(value):
+		crouching = value
+		if is_node_ready():
+			_apply_crouch_shape()
 
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
-var _is_crouching: bool = false
 var _head_stand_y: float = 0.0
 var _capsule: CapsuleShape3D
 var _current_prompt: String = ""
+## The first motion event after capturing the mouse is a large warp jump.
+var _skip_next_mouse_motion: bool = true
 
 @onready var _collision: CollisionShape3D = $CollisionShape3D
+@onready var _body_mesh: MeshInstance3D = $Body
 @onready var _head: Node3D = $Head
 @onready var _camera: Camera3D = $Head/Camera3D
 @onready var _flashlight: SpotLight3D = $Head/Camera3D/Flashlight
 @onready var _interact_ray: RayCast3D = $Head/Camera3D/InteractRay
 @onready var _hold_point: Marker3D = $Head/Camera3D/HoldPoint
+@onready var _nameplate: Label3D = $Nameplate
+
+
+func _enter_tree() -> void:
+	var peer_id := get_peer_id()
+	if peer_id > 0:
+		set_multiplayer_authority(peer_id)
 
 
 func _ready() -> void:
 	_capsule = _collision.shape as CapsuleShape3D
 	_head_stand_y = _head.position.y
 	_interact_ray.add_exception(self)
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	_nameplate.text = Net.players.get(get_peer_id(), "")
+	_apply_crouch_shape()
+	if is_multiplayer_authority():
+		_setup_local()
+	else:
+		_setup_remote()
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	var mouse_motion := event as InputEventMouseMotion
 	if mouse_motion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		_look(mouse_motion.relative)
+		if _skip_next_mouse_motion:
+			_skip_next_mouse_motion = false
+		else:
+			_look(mouse_motion.relative)
 		return
 	var mouse_button := event as InputEventMouseButton
 	if mouse_button and mouse_button.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		_capture_mouse()
 	elif event.is_action_pressed(InputActions.PAUSE):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif event.is_action_pressed(InputActions.FLASHLIGHT):
@@ -59,9 +84,19 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if not is_multiplayer_authority():
+		return
 	_update_crouch()
 	_apply_movement(delta)
 	_update_interact_prompt()
+
+
+func get_peer_id() -> int:
+	return String(name).to_int()
+
+
+func is_local() -> bool:
+	return is_multiplayer_authority()
 
 
 func toggle_flashlight() -> void:
@@ -96,6 +131,26 @@ func drop_held_item() -> void:
 	held_item_changed.emit(null)
 
 
+func _setup_local() -> void:
+	_camera.current = true
+	_nameplate.visible = false
+	_capture_mouse()
+
+
+func _setup_remote() -> void:
+	_camera.current = false
+	_interact_ray.enabled = false
+	set_process_unhandled_input(false)
+	# Our own body is hidden from inside; other players should see and cast shadows.
+	_body_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	_nameplate.visible = true
+
+
+func _capture_mouse() -> void:
+	_skip_next_mouse_motion = true
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
 func _look(relative: Vector2) -> void:
 	var sensitivity := Settings.mouse_sensitivity
 	rotate_y(-relative.x * sensitivity)
@@ -106,7 +161,7 @@ func _look(relative: Vector2) -> void:
 func _apply_movement(delta: float) -> void:
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
-	elif Input.is_action_just_pressed(InputActions.JUMP) and not _is_crouching:
+	elif Input.is_action_just_pressed(InputActions.JUMP) and not crouching:
 		velocity.y = jump_velocity
 
 	var input_dir := Input.get_vector(
@@ -121,7 +176,7 @@ func _apply_movement(delta: float) -> void:
 
 
 func _current_speed() -> float:
-	if _is_crouching:
+	if crouching:
 		return crouch_speed
 	if Input.is_action_pressed(InputActions.SPRINT):
 		return sprint_speed
@@ -130,14 +185,19 @@ func _current_speed() -> float:
 
 func _update_crouch() -> void:
 	var wants_crouch := Input.is_action_pressed(InputActions.CROUCH)
-	if wants_crouch == _is_crouching:
+	if wants_crouch == crouching:
 		return
 	if not wants_crouch and not _has_headroom():
 		return  # Stay crouched under low ceilings.
-	_is_crouching = wants_crouch
-	var height := crouch_height if _is_crouching else stand_height
+	crouching = wants_crouch
+
+
+func _apply_crouch_shape() -> void:
+	var height := crouch_height if crouching else stand_height
 	_capsule.height = height
 	_collision.position.y = height * 0.5
+	_body_mesh.scale.y = height / stand_height
+	_body_mesh.position.y = height * 0.5
 	_head.position.y = _head_stand_y - (stand_height - height)
 
 

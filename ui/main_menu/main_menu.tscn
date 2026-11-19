@@ -1,0 +1,138 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/main_menu/main_menu.gd" id="1_menu"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_menu")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.04, 0.045, 0.06, 1)
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Column" type="VBoxContainer" parent="Center"]
+custom_minimum_size = Vector2(520, 0)
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="Center/Column"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 48
+text = "UI_GAME_TITLE"
+horizontal_alignment = 1
+
+[node name="MenuPanel" type="VBoxContainer" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="NameEdit" type="LineEdit" parent="Center/Column/MenuPanel"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+placeholder_text = "UI_NAME_PLACEHOLDER"
+
+[node name="AddressEdit" type="LineEdit" parent="Center/Column/MenuPanel"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+text = "127.0.0.1"
+placeholder_text = "UI_ADDRESS_PLACEHOLDER"
+
+[node name="Buttons" type="HBoxContainer" parent="Center/Column/MenuPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="HostButton" type="Button" parent="Center/Column/MenuPanel/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "UI_HOST"
+
+[node name="JoinButton" type="Button" parent="Center/Column/MenuPanel/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "UI_JOIN"
+
+[node name="QuitButton" type="Button" parent="Center/Column/MenuPanel/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "UI_QUIT"
+
+[node name="LobbyPanel" type="VBoxContainer" parent="Center/Column"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="LobbyTitle" type="Label" parent="Center/Column/LobbyPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+text = "UI_LOBBY"
+horizontal_alignment = 1
+
+[node name="PlayerList" type="VBoxContainer" parent="Center/Column/LobbyPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="LobbyStatusLabel" type="Label" parent="Center/Column/LobbyPanel"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="AddressInfoLabel" type="Label" parent="Center/Column/LobbyPanel"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.8, 0.9, 1)
+autowrap_mode = 3
+
+[node name="LobbyButtons" type="HBoxContainer" parent="Center/Column/LobbyPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="StartButton" type="Button" parent="Center/Column/LobbyPanel/LobbyButtons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "UI_START"
+
+[node name="LeaveButton" type="Button" parent="Center/Column/LobbyPanel/LobbyButtons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "UI_LEAVE"
+
+[node name="StatusLabel" type="Label" parent="Center/Column"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.75, 0.55, 1)
+horizontal_alignment = 1
+autowrap_mode = 3

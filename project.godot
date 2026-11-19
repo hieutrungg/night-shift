@@ -11,12 +11,13 @@ config_version=5
 [application]
 
 config/name="Night Shift"
-run/main_scene="res://levels/greybox_01/greybox_01.tscn"
+run/main_scene="res://ui/main_menu/main_menu.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 
 [autoload]
 
 Settings="*res://core/settings.gd"
+Net="*res://core/net.gd"
 DebugCapture="*res://core/debug_capture.gd"
 
 [debug]
