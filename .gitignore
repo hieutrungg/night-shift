@@ -1,0 +1,16 @@
+# Godot 4 cache / generated
+.godot/
+/android/
+*.translation
+
+# Export output
+/build/
+*.exe
+*.pck
+*.zip
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+*.tmp
