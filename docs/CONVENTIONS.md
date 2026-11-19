@@ -118,6 +118,8 @@ Thêm:
 - Node người chơi tên là chính peer id (`str(peer_id)`), authority của node đó (chỉ phần chuyển động) là peer id đó.
 - Spawn người chơi và đồ vật bằng `MultiplayerSpawner`. Đồng bộ vị trí liên tục bằng `MultiplayerSynchronizer`, không tự gửi RPC mỗi frame.
 - Đồ vật: chỉ host chạy vật lý; client giữ đồ ở trạng thái `freeze` và chép `synced_transform`. Khi có người cầm, mỗi máy tự cho món đồ bám theo tay người đó (không đồng bộ vị trí lúc đang cầm).
+- Vòng chơi (`features/round/round_manager.gd`): host quyết định bắt đầu, tiền đã thu, kết thúc; client chỉ tự đếm giờ giữa các tin nhắn. Luật vòng (thời gian, tỉ lệ chỉ tiêu) nằm trong `GameConfig`.
+- Chơi lại: dùng `GreyboxLevel.restart_round()` (dừng đồng bộ người chơi → xóa người chơi/đồ → mới tải lại map). Không gọi thẳng `Net.restart_match()`, vì sẽ sinh lỗi "Node not found" ở client.
 - Khoảng cách tối đa host chấp nhận yêu cầu mở cửa/nhặt đồ: `GameConfig.INTERACT_MAX_DISTANCE`. Tìm node người chơi theo peer id bằng `Player.find_by_peer()`.
 - Dữ liệu tần suất cao (vị trí) dùng `unreliable` / `unreliable_ordered`. Sự kiện (nhặt đồ, chết, kết thúc vòng) dùng `reliable`.
 - Không gửi `Object`/`Node` qua RPC; gửi id, `NodePath` hoặc giá trị đơn giản.

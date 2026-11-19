@@ -1,4 +1,4 @@
-class_name GreyboxLevel
+﻿class_name GreyboxLevel
 extends Node3D
 ## Builds a blockout level from an ASCII layout: one character = one cell.
 ## Subclasses override _get_layout() and _get_item_pool().
@@ -22,12 +22,20 @@ const PLAYER_SCENE: PackedScene = preload("res://features/player/player.tscn")
 const DOOR_SCENE: PackedScene = preload("res://features/doors/door.tscn")
 const ITEM_SCENE: PackedScene = preload("res://features/items/item.tscn")
 const HUD_SCENE: PackedScene = preload("res://ui/hud/hud.tscn")
+const VAN_SCENE: PackedScene = preload("res://features/round/van.tscn")
+const VAN_HEIGHT: float = 2.0
+const RESTART_FLUSH_FRAMES: int = 2
+## Time for in-flight player movement packets to land before despawning.
+const RESTART_SYNC_STOP_SEC: float = 0.25
 
-@export var item_seed: int = 1
+## 0 picks new loot every round; any other value repeats the same loot.
+@export var item_seed: int = 0
 
 var _rows: PackedStringArray = []
 var _player: Player = null
 var _hud: Hud = null
+var _round: RoundManager
+var _van: Van = null
 var _players_root: Node3D
 var _player_spawner: MultiplayerSpawner
 var _items_root: Node3D
@@ -54,6 +62,7 @@ func _ready() -> void:
 	_geometry.name = "Geometry"
 	add_child(_geometry)
 	_build()
+	_setup_round()
 	_setup_item_spawning()
 	_setup_player_spawning()
 	if multiplayer.is_server():
@@ -91,6 +100,38 @@ func get_item(index: int) -> Item:
 
 func get_player_spawns() -> Array[Vector3]:
 	return _player_spawns
+
+
+func get_round() -> RoundManager:
+	return _round
+
+
+## Null when the layout has no van cells.
+func get_van() -> Van:
+	return _van
+
+
+## Host only: clears players and items on every peer, then reloads the level.
+func restart_round() -> void:
+	if not multiplayer.is_server():
+		return
+	_stop_player_sync.rpc()
+	await get_tree().create_timer(RESTART_SYNC_STOP_SEC).timeout
+	for child in _items_root.get_children():
+		child.queue_free()
+	for child in _players_root.get_children():
+		child.queue_free()
+	# Despawn messages must reach clients while they still have this level,
+	# otherwise they arrive for nodes the client already unloaded.
+	for _frame in RESTART_FLUSH_FRAMES:
+		await get_tree().process_frame
+	Net.restart_match()
+
+
+@rpc("authority", "call_local", "reliable")
+func _stop_player_sync() -> void:
+	if _player != null:
+		_player.stop_syncing()
 
 
 ## Override: the ASCII rows of the level, all the same length.
@@ -251,8 +292,13 @@ func _build_van() -> void:
 	for cell in _van_cells:
 		center += cell
 	center /= _van_cells.size()
-	var size := Vector3(_van_cells.size() * CELL, 2.0, 2.0)
-	_add_block(center + Vector3.UP * size.y * 0.5, size, _van_material)
+	var size := Vector3(_van_cells.size() * CELL, VAN_HEIGHT, 2.0 * CELL)
+	_van = VAN_SCENE.instantiate() as Van
+	_van.name = "Van"
+	_van.size = size
+	_van.color = _van_material.albedo_color
+	_van.position = center + Vector3.UP * size.y * 0.5
+	add_child(_van)
 
 
 func _add_boundary(width: int, depth: int) -> void:
@@ -287,6 +333,18 @@ func _add_collider(center: Vector3, size: Vector3) -> StaticBody3D:
 	return body
 
 
+## The round node exists on every peer with the same path, so its RPCs reach
+## everyone. The van follows the round: it only accepts loot while it runs.
+func _setup_round() -> void:
+	_round = RoundManager.new()
+	_round.name = "Round"
+	add_child(_round)
+	_round.round_started.connect(_on_round_started)
+	_round.round_ended.connect(_on_round_ended)
+	if _van != null and multiplayer.is_server():
+		_van.item_deposited.connect(_on_item_deposited)
+
+
 ## Items live under "Items". The host spawns them; the spawner builds the same
 ## item on every client from a small dictionary (index, kind, position).
 func _setup_item_spawning() -> void:
@@ -299,6 +357,7 @@ func _setup_item_spawning() -> void:
 	_item_spawner.spawn_path = _item_spawner.get_path_to(_items_root)
 	_item_spawner.spawn_function = _create_item
 	_items_root.child_entered_tree.connect(_on_item_entered)
+	_items_root.child_exiting_tree.connect(_on_item_exiting)
 
 
 ## Players live under "Players"; the host adds them and the spawner copies
@@ -316,24 +375,38 @@ func _setup_player_spawning() -> void:
 
 
 func _on_all_players_loaded() -> void:
-	_spawn_all_items()
+	var total_value := _spawn_all_items()
 	_spawn_all_players()
+	_round.start(_quota_for(total_value))
 
 
-func _spawn_all_items() -> void:
+func _quota_for(total_value: int) -> int:
+	var steps := roundi(total_value * GameConfig.QUOTA_RATIO / GameConfig.QUOTA_STEP)
+	return maxi(steps, 1) * GameConfig.QUOTA_STEP
+
+
+## Host only. Returns the total value of the spawned loot.
+func _spawn_all_items() -> int:
 	if not multiplayer.is_server():
-		return
+		return 0
 	var pool := _get_item_pool()
 	if pool.is_empty():
-		return
+		return 0
 	var rng := RandomNumberGenerator.new()
-	rng.seed = item_seed
+	if item_seed == 0:
+		rng.randomize()
+	else:
+		rng.seed = item_seed
+	var total_value := 0
 	for index in _item_spawns.size():
+		var kind := rng.randi_range(0, pool.size() - 1)
+		total_value += pool[kind].value
 		_item_spawner.spawn({
 			"index": index,
-			"kind": rng.randi_range(0, pool.size() - 1),
+			"kind": kind,
 			"position": _item_spawns[index],
 		})
+	return total_value
 
 
 func _create_item(spawn_data: Variant) -> Node:
@@ -353,6 +426,39 @@ func _on_item_entered(node: Node) -> void:
 	var item := node as Item
 	if item != null:
 		_items.append(item)
+
+
+func _on_item_exiting(node: Node) -> void:
+	var item := node as Item
+	if item != null:
+		_items.erase(item)
+
+
+func _on_item_deposited(item: Item, _peer_id: int) -> void:
+	if not multiplayer.is_server() or not _round.is_playing():
+		return
+	_round.add_collected(item.data.value)
+	item.consume()
+	if _count_items_left() == 0:
+		_round.finish()
+
+
+func _count_items_left() -> int:
+	var count := 0
+	for item in _items:
+		if is_instance_valid(item) and not item.is_queued_for_deletion():
+			count += 1
+	return count
+
+
+func _on_round_started(_duration_sec: float, _quota: int) -> void:
+	if _van != null:
+		_van.accepting = true
+
+
+func _on_round_ended(_success: bool, _collected: int, _quota: int) -> void:
+	if _van != null:
+		_van.accepting = false
 
 
 func _spawn_all_players() -> void:
@@ -388,7 +494,9 @@ func _on_player_entered(node: Node) -> void:
 	if _hud == null:
 		_hud = HUD_SCENE.instantiate() as Hud
 		add_child(_hud)
+		_hud.play_again_requested.connect(restart_round)
 	# Wait until the player's own _ready has run so its nodes exist.
 	if not player.is_node_ready():
 		await player.ready
 	_hud.bind_player(player)
+	_hud.bind_round(_round)

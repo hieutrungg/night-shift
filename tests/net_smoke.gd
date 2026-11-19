@@ -22,6 +22,10 @@ const POSITION_SETTLE_SEC: float = 1.0
 const CONTEST_ITEM: int = 0
 const FAR_ITEM: int = 14
 const CONTENDERS: PackedStringArray = ["C1", "C2"]
+## Items spawned by greybox_01 at the start of a round.
+const ITEM_COUNT: int = 15
+## Lets clients check the result before the host starts the next round.
+const ROUND_RESULT_WAIT_SEC: float = 2.0
 
 var _failures: int = 0
 var _role: String = ""
@@ -93,8 +97,28 @@ func _run_host_contest() -> void:
 			holders += 1
 	_check(holders == 1, "exactly one player holds the item (got %d)" % holders)
 	_check(not level.get_item(FAR_ITEM).is_held(), "far pick-up was refused")
-	var released := await _wait_until(func() -> bool: return not item.is_held(), 15.0)
-	_check(released, "winner dropped the item")
+	await _run_host_round(level, item)
+
+
+## The winner loads the item into the van; the host ends the round and starts
+## the next one, and every peer must follow.
+func _run_host_round(level: GreyboxLevel, item: Item) -> void:
+	var value := item.data.value
+	var item_count := level.get_items().size()
+	var round_manager := level.get_round()
+	var deposited := await _wait_until(
+		func() -> bool: return level.get_item(CONTEST_ITEM) == null and round_manager.collected == value, 20.0)
+	_check(deposited, "winner loaded the item into the van (+%d)" % value)
+	_check(level.get_items().size() == item_count - 1, "deposited item removed on the host")
+	await _seconds(POSITION_SETTLE_SEC)
+	round_manager.finish()
+	_check(round_manager.phase == RoundManager.Phase.ENDED and not round_manager.success,
+		"host ended the round below quota (%d/%d)" % [round_manager.collected, round_manager.quota])
+	await _seconds(ROUND_RESULT_WAIT_SEC)
+	var old_level_id := level.get_instance_id()
+	level.restart_round()
+	var restarted := await _wait_until(func() -> bool: return _is_new_round(old_level_id), 30.0)
+	_check(restarted, "new round running with %d players" % GameConfig.MAX_PLAYERS)
 
 
 func _run_client() -> void:
@@ -144,11 +168,25 @@ func _run_client_contest(me: Player) -> void:
 	_check(_is_contender(winner), "item went to one contender (holder %d)" % winner)
 	var i_won := winner == me.get_peer_id()
 	_check((me.held_item == item) == i_won, "local held item matches the host's decision")
+	await _run_client_round(level, me, item, i_won)
+
+
+func _run_client_round(level: GreyboxLevel, me: Player, item: Item, i_won: bool) -> void:
+	var value := item.data.value
+	var round_manager := level.get_round()
 	if i_won:
+		var van := level.get_van()
+		_teleport(me, van.global_position + Vector3(0.0, 0.1 - van.size.y * 0.5, -(van.size.z * 0.5 + 1.0)))
 		await _seconds(POSITION_SETTLE_SEC)
-		me.drop_held_item()
-	var released := await _wait_until(func() -> bool: return not item.is_held(), 15.0)
-	_check(released and me.held_item == null, "item released on this peer")
+		van.request_deposit()
+	var deposited := await _wait_until(
+		func() -> bool: return level.get_item(CONTEST_ITEM) == null and round_manager.collected == value, 15.0)
+	_check(deposited and me.held_item == null, "deposit seen on this peer (+%d)" % value)
+	var ended := await _wait_until(func() -> bool: return round_manager.phase == RoundManager.Phase.ENDED, 15.0)
+	_check(ended and round_manager.collected == value and not round_manager.success, "same round result as the host")
+	var old_level_id := level.get_instance_id()
+	var restarted := await _wait_until(func() -> bool: return _is_new_round(old_level_id), 30.0)
+	_check(restarted, "new round loaded after play again")
 
 
 func _run_extra() -> void:
@@ -174,6 +212,16 @@ func _all_clients_moved() -> bool:
 		if player == null or absf(player.global_position.x - spawns[index].x) < CLIENT_SHIFT * 0.8:
 			return false
 	return true
+
+
+func _is_new_round(old_level_id: int) -> bool:
+	var level := get_tree().current_scene as GreyboxLevel
+	if level == null or level.get_instance_id() == old_level_id or not level.is_node_ready():
+		return false
+	var round_manager := level.get_round()
+	return (round_manager.is_playing() and round_manager.collected == 0
+		and level.get_players().size() == GameConfig.MAX_PLAYERS
+		and level.get_items().size() == ITEM_COUNT)
 
 
 func _is_contender(peer_id: int) -> bool:

@@ -85,6 +85,14 @@ func start_game() -> bool:
 	return true
 
 
+## Host only: reloads the level on every peer for a new round.
+func restart_match() -> bool:
+	if not multiplayer.is_server() or not in_game:
+		return false
+	_begin_game.rpc()
+	return true
+
+
 ## Called by the level once it is ready on this peer. The host spawns players
 ## only after every peer reported, so no spawn message is lost.
 func report_level_loaded() -> void:

@@ -17,6 +17,7 @@ func _ready() -> void:
 func _run() -> void:
 	_check(GameConfig.MIN_PLAYERS == 2 and GameConfig.MAX_PLAYERS == 4, "player limits are 2..4")
 	_check_translations()
+	_check_every_key_translated()
 
 	# Offline peer acts as host (id 1); register it so the level spawns one player.
 	Net.players[1] = "Tester"
@@ -37,6 +38,7 @@ func _run() -> void:
 	await _check_door(player, level.get_doors()[0])
 	await _check_item(player, level.get_item(0), level.get_item(14))
 	_check_flashlight(player)
+	await _check_round(level, player, level.get_item(0))
 
 
 func _check_translations() -> void:
@@ -45,6 +47,22 @@ func _check_translations() -> void:
 	_check(tr("HUD_PICK_UP").format({"item": tr("ITEM_LAMP")}) == "[E] Nhặt Đèn bàn", "placeholder format works")
 	TranslationServer.set_locale(GameConfig.DEFAULT_LOCALE)
 	_check(tr("ITEM_RADIO") == "Old radio", "English translation loaded")
+
+
+func _check_every_key_translated() -> void:
+	var file := FileAccess.open("res://i18n/translations.csv", FileAccess.READ)
+	if file == null:
+		_check(false, "translations.csv opens")
+		return
+	file.get_csv_line()  # header: keys,en,vi
+	var missing: PackedStringArray = []
+	while not file.eof_reached():
+		var columns := file.get_csv_line()
+		if columns.size() == 1 and columns[0].is_empty():
+			continue
+		if columns.size() < 3 or columns[1].is_empty() or columns[2].is_empty():
+			missing.append(columns[0])
+	_check(missing.is_empty(), "every key has en and vi (missing: %s)" % ", ".join(missing))
 
 
 func _check_walking(player: Player) -> void:
@@ -92,6 +110,37 @@ func _check_item(player: Player, item: Item, far_item: Item) -> void:
 	_check(player.held_item == null and not item.freeze and not item.is_held(), "item dropped")
 	_check(item.global_position.y > -0.5, "dropped item stays above ground")
 	_check(item.synced_transform.is_equal_approx(item.global_transform), "host publishes the resting transform")
+
+
+func _check_round(level: GreyboxLevel, player: Player, item: Item) -> void:
+	var round_manager := level.get_round()
+	var van := level.get_van()
+	_check(round_manager.is_playing() and round_manager.quota > 0,
+		"round running with a quota (%d)" % round_manager.quota)
+	_check(round_manager.time_left < round_manager.duration_sec, "round clock counts down")
+	var spot := item.global_position
+	_teleport(player, Vector3(spot.x + 1.0, 0.1, spot.z + 1.0))
+	await _physics_frames(5)
+	item.request_pick_up()
+	await _physics_frames(5)
+	van.request_deposit()
+	await _physics_frames(5)
+	_check(player.held_item == item, "host refuses a deposit from far away")
+
+	var value := item.data.value
+	var items_before := level.get_items().size()
+	_teleport(player, van.global_position + Vector3(0.0, 0.1 - van.size.y * 0.5, -(van.size.z * 0.5 + 1.0)))
+	await _physics_frames(5)
+	van.request_deposit()
+	await _physics_frames(5)
+	_check(round_manager.collected == value and player.held_item == null,
+		"deposit adds the item's value (%d)" % round_manager.collected)
+	_check(level.get_items().size() == items_before - 1, "deposited item is removed")
+
+	round_manager.finish()
+	await _physics_frames(2)
+	_check(round_manager.phase == RoundManager.Phase.ENDED and not van.accepting, "round ends and the van closes")
+	_check(round_manager.success == (value >= round_manager.quota), "result compares collected to quota")
 
 
 func _teleport(player: Player, at: Vector3) -> void:

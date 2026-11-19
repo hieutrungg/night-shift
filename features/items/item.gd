@@ -42,6 +42,15 @@ func _ready() -> void:
 		freeze = true
 
 
+func _exit_tree() -> void:
+	# Runs on every peer when the host frees the item (deposit, new round).
+	if holder_id == NO_HOLDER:
+		return
+	var player := Player.find_by_peer(get_tree(), holder_id)
+	if player != null and player.held_item == self:
+		player.set_held_item(null)
+
+
 func _physics_process(_delta: float) -> void:
 	if holder_id != NO_HOLDER:
 		if is_instance_valid(_follow_target):
@@ -63,6 +72,13 @@ func request_pick_up() -> void:
 ## Asks the host to drop this item, placed at `at` and pushed by `push`.
 func request_drop(at: Transform3D, push: Vector3) -> void:
 	_request_drop.rpc_id(1, at, push)
+
+
+## Host only: removes the item from the match; the spawner removes it on clients.
+func consume() -> void:
+	if not multiplayer.is_server():
+		return
+	queue_free()
 
 
 ## Host only: drop the item where it is, e.g. when its holder disconnects.

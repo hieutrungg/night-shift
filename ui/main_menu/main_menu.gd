@@ -3,12 +3,16 @@ extends Control
 
 const ADDRESS_SEPARATOR: String = "  ·  "
 
+var _status_key: String = ""
+var _status_args: Dictionary = {}
+
 @onready var _menu_panel: Control = %MenuPanel
 @onready var _lobby_panel: Control = %LobbyPanel
 @onready var _name_edit: LineEdit = %NameEdit
 @onready var _address_edit: LineEdit = %AddressEdit
 @onready var _host_button: Button = %HostButton
 @onready var _join_button: Button = %JoinButton
+@onready var _settings_button: Button = %SettingsButton
 @onready var _quit_button: Button = %QuitButton
 @onready var _status_label: Label = %StatusLabel
 @onready var _player_list: VBoxContainer = %PlayerList
@@ -16,6 +20,7 @@ const ADDRESS_SEPARATOR: String = "  ·  "
 @onready var _address_info_label: Label = %AddressInfoLabel
 @onready var _start_button: Button = %StartButton
 @onready var _leave_button: Button = %LeaveButton
+@onready var _settings_panel: SettingsPanel = %SettingsPanel
 
 
 func _ready() -> void:
@@ -24,6 +29,7 @@ func _ready() -> void:
 	_name_edit.max_length = Net.MAX_NAME_LENGTH
 	_host_button.pressed.connect(_on_host_pressed)
 	_join_button.pressed.connect(_on_join_pressed)
+	_settings_button.pressed.connect(_settings_panel.open)
 	_quit_button.pressed.connect(_on_quit_pressed)
 	_start_button.pressed.connect(_on_start_pressed)
 	_leave_button.pressed.connect(_on_leave_pressed)
@@ -78,12 +84,15 @@ func _on_quit_pressed() -> void:
 
 func _on_locale_changed(_locale: String) -> void:
 	_refresh_lobby()
+	if not _status_key.is_empty():
+		_set_status(_status_key, _status_args)
 
 
 func _show_menu() -> void:
 	_menu_panel.visible = true
 	_lobby_panel.visible = false
 	_set_menu_buttons_enabled(true)
+	_status_key = ""
 	_status_label.text = ""
 
 
@@ -141,6 +150,8 @@ func _local_ipv4_addresses() -> PackedStringArray:
 
 
 func _set_status(key: String, args: Dictionary = {}) -> void:
+	_status_key = key
+	_status_args = args
 	var values := {"max": GameConfig.MAX_PLAYERS, "min": GameConfig.MIN_PLAYERS}
 	values.merge(args, true)
 	_status_label.text = tr(key).format(values)

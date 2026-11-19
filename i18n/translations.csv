@@ -33,3 +33,18 @@ ERR_GAME_IN_PROGRESS,The game has already started.,Trận đã bắt đầu rồ
 ERR_CONNECT_FAILED,Could not connect. Check the IP and that the host has created a room.,Không kết nối được. Kiểm tra IP và chủ phòng đã tạo phòng chưa.
 ERR_HOST_FAILED,"Could not host on port {port}: {error}","Không tạo được phòng ở cổng {port}: {error}"
 ERR_INVALID_ADDRESS,Enter the host's IP address.,Hãy nhập IP của chủ phòng.
+HUD_DEPOSIT,[E] Load into the van,[E] Chất lên xe
+HUD_TIME_LEFT,Time left: {time},Thời gian còn: {time}
+HUD_QUOTA,"Quota: ${current} / ${target}","Chỉ tiêu: ${current} / ${target}"
+ROUND_SUCCESS,Quota met!,Đạt chỉ tiêu!
+ROUND_FAILED,Quota missed,Không đạt chỉ tiêu
+ROUND_COLLECTED,"Collected ${collected} of ${quota}","Đã thu ${collected} / ${quota}"
+ROUND_WAITING_FOR_HOST,Waiting for the host to start the next round…,Đang chờ chủ phòng bắt đầu vòng mới…
+UI_PLAY_AGAIN,Play again,Chơi lại
+UI_SETTINGS,Settings,Cài đặt
+SET_LANGUAGE,Language,Ngôn ngữ
+SET_LANG_EN,English,English
+SET_LANG_VI,Tiếng Việt,Tiếng Việt
+SET_MOUSE_SENSITIVITY,Mouse sensitivity,Độ nhạy chuột
+SET_VOLUME,Volume,Âm lượng
+SET_CLOSE,Close,Đóng

@@ -44,6 +44,7 @@ var _skip_next_mouse_motion: bool = true
 @onready var _interact_ray: RayCast3D = $Head/Camera3D/InteractRay
 @onready var _hold_point: Marker3D = $Head/Camera3D/HoldPoint
 @onready var _nameplate: Label3D = $Nameplate
+@onready var _sync: MultiplayerSynchronizer = $Sync
 
 
 func _enter_tree() -> void:
@@ -117,6 +118,12 @@ func toggle_flashlight() -> void:
 
 func is_flashlight_on() -> bool:
 	return _flashlight.visible
+
+
+## Stops sending our movement so nothing arrives for this node after the host
+## despawns it (used before a new round).
+func stop_syncing() -> void:
+	_sync.public_visibility = false
 
 
 func get_hold_point() -> Node3D:

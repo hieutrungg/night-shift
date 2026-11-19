@@ -1,0 +1,15 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://features/round/van.gd" id="1_van"]
+[ext_resource type="Script" path="res://features/interaction/interactable.gd" id="2_interactable"]
+
+[node name="Van" type="StaticBody3D"]
+script = ExtResource("1_van")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+
+[node name="Interactable" type="Node" parent="."]
+script = ExtResource("2_interactable")
+prompt_key = "HUD_DEPOSIT"
