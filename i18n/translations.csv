@@ -1,0 +1,12 @@
+keys,en,vi
+UI_GAME_TITLE,Night Shift,Ca Trực Đêm
+HUD_CONTROLS_HINT,"WASD: move · Shift: sprint · Ctrl: crouch · Space: jump · F: flashlight · E: use · G: drop · Esc: mouse","WASD: di chuyển · Shift: chạy · Ctrl: ngồi · Space: nhảy · F: đèn pin · E: dùng · G: thả · Esc: chuột"
+HUD_OPEN_DOOR,[E] Open door,[E] Mở cửa
+HUD_CLOSE_DOOR,[E] Close door,[E] Đóng cửa
+HUD_PICK_UP,[E] Pick up {item},[E] Nhặt {item}
+HUD_HOLDING,"Holding: {item} (${value}) · [G] Drop","Đang cầm: {item} (${value}) · [G] Thả"
+ITEM_UNKNOWN,Unknown item,Món đồ lạ
+ITEM_RADIO,Old radio,Radio cũ
+ITEM_TOOLBOX,Toolbox,Hộp đồ nghề
+ITEM_LAMP,Desk lamp,Đèn bàn
+ITEM_VASE,Ceramic vase,Bình gốm

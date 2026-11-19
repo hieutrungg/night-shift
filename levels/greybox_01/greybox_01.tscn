@@ -1,0 +1,20 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://levels/greybox_01/greybox_01.gd" id="1_level"]
+
+[sub_resource type="Environment" id="Environment_night"]
+background_mode = 1
+background_color = Color(0.01, 0.012, 0.02, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.3, 0.32, 0.4, 1)
+ambient_light_energy = 0.06
+tonemap_mode = 2
+volumetric_fog_enabled = true
+volumetric_fog_density = 0.03
+volumetric_fog_albedo = Color(0.6, 0.62, 0.68, 1)
+
+[node name="Greybox01" type="Node3D"]
+script = ExtResource("1_level")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_night")
