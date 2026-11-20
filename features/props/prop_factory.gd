@@ -15,6 +15,17 @@ const CAR_KIT_SCALE: float = 1.7
 const CENTIMETRES: float = 0.01
 const MANNEQUIN_SIZE: Vector3 = Vector3(0.55, 1.82, 0.4)
 const MANNEQUIN: String = "mannequin"
+## Built from primitives: id -> footprint size (x, y, z) before turning.
+const PROCEDURAL: Dictionary[String, Vector3] = {
+	"streetLamp": Vector3(0.3, 4.6, 0.3),
+	"parkingLine": Vector3(0.12, 0.01, 5.0),
+}
+const LAMP_HEIGHT: float = 4.6
+const LAMP_ARM_LENGTH: float = 1.2
+const LAMP_COLOUR: Color = Color(1.0, 0.72, 0.42)
+const LAMP_ENERGY: float = 3.5
+const LAMP_RANGE: float = 11.0
+const LAMP_ANGLE_DEG: float = 52.0
 ## Kenney models come in bright toy colours; grey and darken them to fit an
 ## abandoned building (share of grey mixed in, then brightness kept).
 const WEATHER_GREY: float = 0.6
@@ -34,6 +45,15 @@ const OTHER_MODELS: Dictionary[String, Array] = {
 	"lotta": ["res://assets/models/lotta_tra_como/lotta_tra_como.glb", CENTIMETRES],
 	"cone": [CAR_KIT_DIR + "cone.glb", CAR_KIT_SCALE],
 	"crate": [CAR_KIT_DIR + "box.glb", CAR_KIT_SCALE],
+	"sedan": [CAR_KIT_DIR + "sedan.glb", CAR_KIT_SCALE],
+	"sedanSports": [CAR_KIT_DIR + "sedan-sports.glb", CAR_KIT_SCALE],
+	"suv": [CAR_KIT_DIR + "suv.glb", CAR_KIT_SCALE],
+	"van": [CAR_KIT_DIR + "van.glb", CAR_KIT_SCALE],
+	"hatchback": [CAR_KIT_DIR + "hatchback-sports.glb", CAR_KIT_SCALE],
+	"delivery": [CAR_KIT_DIR + "delivery.glb", CAR_KIT_SCALE],
+	"tire": [CAR_KIT_DIR + "debris-tire.glb", CAR_KIT_SCALE],
+	"carDoor": [CAR_KIT_DIR + "debris-door.glb", CAR_KIT_SCALE],
+	"wheel": [CAR_KIT_DIR + "wheel-default.glb", CAR_KIT_SCALE],
 }
 
 ## id -> scaled model bounds, so each model is measured once.
@@ -46,6 +66,10 @@ static var _weathered: Dictionary[int, BaseMaterial3D] = {}
 static func create(id: String, pose: int = 0) -> Node3D:
 	if id == MANNEQUIN:
 		return _create_mannequin(pose)
+	if id == "streetLamp":
+		return _create_street_lamp()
+	if id == "parkingLine":
+		return _create_parking_line()
 	var model := _instantiate_model(id)
 	if model == null:
 		return Node3D.new()
@@ -85,7 +109,9 @@ static func clear_cache() -> void:
 
 ## Size of the prop before turning (x = width, y = height, z = depth).
 static func size_of(id: String) -> Vector3:
-	return MANNEQUIN_SIZE if id == MANNEQUIN else bounds(id).size
+	if id == MANNEQUIN:
+		return MANNEQUIN_SIZE
+	return PROCEDURAL[id] if PROCEDURAL.has(id) else bounds(id).size
 
 
 static func bounds(id: String) -> AABB:
@@ -148,3 +174,61 @@ static func _weathered_copy(source: BaseMaterial3D) -> BaseMaterial3D:
 		copy.roughness = maxf(copy.roughness, WEATHER_MIN_ROUGHNESS)
 		_weathered[key] = copy
 	return _weathered[key]
+
+
+## Pole, arm and a sodium head shining down; the arm points along +Z.
+static func _create_street_lamp() -> Node3D:
+	var body := StaticBody3D.new()
+	body.collision_layer = GameConfig.LAYER_WORLD
+	body.add_child(_box_shape(PROCEDURAL["streetLamp"]))
+	var metal := StandardMaterial3D.new()
+	metal.albedo_color = Color(0.2, 0.21, 0.22)
+	metal.metallic = 0.6
+	metal.roughness = 0.5
+	var pole := MeshInstance3D.new()
+	var cylinder := CylinderMesh.new()
+	cylinder.top_radius = 0.06
+	cylinder.bottom_radius = 0.09
+	cylinder.height = LAMP_HEIGHT
+	cylinder.material = metal
+	pole.mesh = cylinder
+	pole.position.y = LAMP_HEIGHT * 0.5
+	body.add_child(pole)
+	body.add_child(_mesh_box(Vector3(0.08, 0.08, LAMP_ARM_LENGTH),
+		Vector3(0.0, LAMP_HEIGHT - 0.05, LAMP_ARM_LENGTH * 0.5), metal))
+	var glow := StandardMaterial3D.new()
+	glow.albedo_color = LAMP_COLOUR
+	glow.emission_enabled = true
+	glow.emission = LAMP_COLOUR
+	glow.emission_energy_multiplier = 2.0
+	body.add_child(_mesh_box(Vector3(0.36, 0.12, 0.55),
+		Vector3(0.0, LAMP_HEIGHT - 0.12, LAMP_ARM_LENGTH), glow))
+	var light := SpotLight3D.new()
+	light.position = Vector3(0.0, LAMP_HEIGHT - 0.2, LAMP_ARM_LENGTH)
+	light.rotation.x = -PI * 0.5
+	light.light_color = LAMP_COLOUR
+	light.light_energy = LAMP_ENERGY
+	light.spot_range = LAMP_RANGE
+	light.spot_angle = LAMP_ANGLE_DEG
+	light.shadow_enabled = true
+	body.add_child(light)
+	return body
+
+
+static func _create_parking_line() -> Node3D:
+	var paint := StandardMaterial3D.new()
+	paint.albedo_color = Color(0.78, 0.76, 0.66)
+	paint.roughness = 0.95
+	var holder := Node3D.new()
+	holder.add_child(_mesh_box(PROCEDURAL["parkingLine"], Vector3(0.0, 0.006, 0.0), paint))
+	return holder
+
+
+static func _mesh_box(size: Vector3, at: Vector3, material: BaseMaterial3D) -> MeshInstance3D:
+	var box := BoxMesh.new()
+	box.size = size
+	box.material = material
+	var mesh := MeshInstance3D.new()
+	mesh.mesh = box
+	mesh.position = at
+	return mesh

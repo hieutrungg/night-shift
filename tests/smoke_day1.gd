@@ -16,6 +16,8 @@ const MIN_DECOR_COUNT: int = 100
 const BULKY_WALK_FRAMES: int = 45
 const BULKY_MAX_DISTANCE: float = 1.0
 const DOOR_SWING_FRAMES: int = 40
+## Ceiling lights (15) + street lamps (4) + entrance lamp (1).
+const MIN_MANNEQUIN_LIGHTS: int = 20
 ## Up to five seconds for a dropped item to stop rolling.
 const ITEM_SETTLE_FRAMES: int = 300
 
@@ -60,6 +62,7 @@ func _run() -> void:
 		"15 loot + 2 bulky spawned (got %d)" % level.get_items().size())
 
 	_check_decor(level)
+	_check_exterior(level)
 	await _check_walking(player)
 	await _check_door(player, level.get_doors()[0])
 	await _check_doors_open_inwards(level)
@@ -120,6 +123,17 @@ func _check_sounds() -> void:
 		synth_ok = synth_ok and wav != null and wav.data.size() > 0 and wav.loop_mode == AudioStreamWAV.LOOP_FORWARD
 	_check(synth_ok, "synthesised sounds are valid")
 	_check(Sfx.footstep() == Sfx.footstep(), "sounds are built once and cached")
+
+
+## The lot is fenced in and its lamps count as light for the mannequin rule.
+func _check_exterior(level: GreyboxLevel) -> void:
+	var lights := get_tree().get_nodes_in_group(MannequinSight.LIGHT_GROUP).size()
+	_check(lights >= MIN_MANNEQUIN_LIGHTS, "street and entrance lamps are mannequin lights (%d)" % lights)
+	var space := level.get_world_3d().direct_space_state
+	var gate := PhysicsRayQueryParameters3D.create(Vector3(18.5, 1.0, 34.0), Vector3(18.5, 1.0, 37.0))
+	_check(not space.intersect_ray(gate).is_empty(), "the gate is closed")
+	var side := PhysicsRayQueryParameters3D.create(Vector3(2.0, 1.0, 30.0), Vector3(-1.0, 1.0, 30.0))
+	_check(not space.intersect_ray(side).is_empty(), "the fence closes the side of the lot")
 
 
 func _check_decor(level: GreyboxLevel) -> void:

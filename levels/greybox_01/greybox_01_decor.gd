@@ -166,10 +166,50 @@ const ENTRIES: Array[Array] = [
 	["bench", 19.8, 13.5, -90],
 	["trashcan", 17.25, 19.4, 0],
 
-	# Parking lot.
+	# Parking lot near the building.
 	["cone", 24.0, 22.4, 0],
 	["cone", 32.3, 22.4, 0],
 	["cone", 23.6, 25.4, 0],
 	["crate", 34.0, 24.5, 15],
 	["crate", 35.3, 24.2, -10],
+
+	# Sidewalk.
+	["trashcan", 6.0, 21.7, 0],
+	["trashcan", 11.0, 21.7, 0],
+	["bench", 8.5, 21.85, 0],
+	["trashcan", 33.0, 21.7, 0],
+	["crate", 1.4, 23.0, 5],
+	["crate", 1.6, 24.5, -12],
+
+	# Parked cars, left where their owners abandoned them.
+	["sedan", 3.0, 29.5, 176],
+	["suv", 9.0, 29.6, 3],
+	["hatchback", 12.0, 29.4, 183],
+	["van", 25.0, 29.5, -2],
+	["sedanSports", 28.2, 29.3, 172],
+	["carDoor", 27.2, 33.0, 70],
+	["delivery", 31.0, 29.8, 178],
+	["tire", 33.6, 33.2, 20],
+	["tire", 34.4, 33.7, -35],
+	["wheel", 6.5, 33.5, 60],
+
+	# Street lamps (the arm points along the turn) and cones by the gate.
+	["streetLamp", 2.0, 26.0, 0],
+	["streetLamp", 34.8, 26.0, 0],
+	["streetLamp", 13.0, 34.6, 180],
+	["streetLamp", 24.0, 34.6, 180],
+	["cone", 16.0, 34.6, 0],
+	["cone", 21.0, 34.6, 0],
 ]
+
+## Painted stall dividers either side of the lane to the gate (x in metres).
+const PARKING_LINE_X: Array[float] = [1.5, 4.5, 7.5, 10.5, 13.5, 23.5, 26.5, 29.5, 32.5, 35.5]
+const PARKING_LINE_Z: float = 29.5
+
+
+## ENTRIES plus the generated parking lines.
+static func entries() -> Array[Array]:
+	var result: Array[Array] = ENTRIES.duplicate()
+	for x in PARKING_LINE_X:
+		result.append(["parkingLine", x, PARKING_LINE_Z, 0])
+	return result

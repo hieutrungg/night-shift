@@ -5,6 +5,7 @@ Mục tiêu: biến tòa nhà khối hộp thành **trụ sở bỏ hoang của 
 Thứ tự làm (theo yêu cầu): **cửa → xe → nội thất từng phòng → đồ nhặt (sau cùng)**.
 
 > **Trạng thái (cập nhật):** cửa, xe, nội thất 12 phòng + hành lang + bãi xe và **đồ nhặt đã xong**.
+> Ngoại cảnh: bãi xe mở rộng thành 15 m có hàng rào lưới B40 và cổng, 8 chỗ đỗ (5 xe bỏ hoang), 4 đèn đường natri, vỉa hè, mặt tiền có tường chắn mái, cửa sổ đóng ván, mái che + đèn + biển "LUMEN GARMENT CO." trên cửa chính; trời đêm. Mặt tiền và hàng rào dựng bằng code (`levels/exterior_builder.gd`). Đèn ngoài trời cũng tính là đèn làm ma-nơ-canh đứng im.
 > Đồ cồng kềnh: TV CRT cũ ($120) và tủ lạnh mini ($160) ở 2 ô `B` trong P1 (phòng xa lối vào nhất, cùng với P4). Khiêng thì đi 1,1 m/s, không chạy, không nhảy. Mọi cửa mở vào phía sâu hơn trong tòa nhà.
 > Đồ nhặt: 7 loại dùng mô hình Kenney Furniture Kit (radio, đèn bàn, laptop, máy nướng bánh, máy xay, loa, chồng sách; $15–$80). Hộp đồ nghề và bình gốm bị bỏ vì không có mô hình. Đồ nhặt không bị làm xám mà phát sáng nhẹ để dễ thấy trong tối; khi cầm được thu nhỏ còn 70% để không che tầm nhìn.
 > Khác so với kế hoạch: "Lotta tra Como" thực tế là **tủ ngăn kéo thấp** (2,06 × 0,87 m), không phải tủ cao, nên tủ cao trong phòng tủ đồ dùng `bookcaseClosedDoors` của Kenney. Old Door là một mesh liền (khung + cánh mở hé), được tách và xoay cánh về vị trí đóng bằng code (`features/doors/door_model.gd`). Đồ Kenney được làm xám/tối cho hợp không khí. Đo được ~270–290 FPS (1280×720, Radeon 880M), không cần cắt giảm.

@@ -102,8 +102,10 @@ func _ready() -> void:
 	_geometry.name = "Geometry"
 	_navigation.add_child(_geometry)
 	_build()
+	_build_exterior()
 	# Decor goes in before the bake so the mannequin paths around furniture.
 	_place_decor()
+	_register_decor_lights()
 	if multiplayer.is_server():
 		_bake_navigation()
 	_setup_round()
@@ -279,6 +281,11 @@ func _end_round_if_all_dead() -> void:
 ## Override: the ASCII rows of the level, all the same length.
 func _get_layout() -> PackedStringArray:
 	return PackedStringArray()
+
+
+## Override: translation key for the sign over outside doors ("" for none).
+func _get_sign_key() -> String:
+	return ""
 
 
 ## Override: decor entries, see Greybox01Decor for the format.
@@ -458,8 +465,7 @@ func _add_ceiling_light(center: Vector3) -> void:
 	light.omni_range = 6.0
 	light.shadow_enabled = true
 	add_child(light)
-	light.add_to_group(MannequinSight.LIGHT_GROUP)
-	_flicker.add_light(light)
+	_register_light(light)
 
 
 func _add_moon() -> void:
@@ -845,3 +851,25 @@ func _compute_depth() -> Dictionary[Vector2i, int]:
 			depth[next] = depth[cell] + 1
 			queue.append(next)
 	return depth
+
+
+## Facade, sidewalk, entrance canopy and the fence around the lot.
+func _build_exterior() -> void:
+	var exterior := ExteriorBuilder.new(_rows, _geometry, WALL_HEIGHT, OUTDOOR_CHARS, _wall_material)
+	exterior.build(_get_sign_key())
+	for light in exterior.lights:
+		_register_light(light)
+
+
+## Lamps among the decor (street lamps) flicker and freeze the mannequin like ceiling lights.
+func _register_decor_lights() -> void:
+	var decor := _geometry.get_node_or_null(^"Decor")
+	if decor == null:
+		return
+	for node in decor.find_children("*", "Light3D", true, false):
+		_register_light(node as Light3D)
+
+
+func _register_light(light: Light3D) -> void:
+	light.add_to_group(MannequinSight.LIGHT_GROUP)
+	_flicker.add_light(light)

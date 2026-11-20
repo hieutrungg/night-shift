@@ -1,8 +1,9 @@
 extends GreyboxLevel
 ## Greybox 01: one-floor office block, 12 rooms around a central corridor,
-## parking lot with the van at the bottom; the mannequin starts in the
-## top-right room. Bulky loot (B) waits in the archive, top-left, which is
-## as far from the entrance as the showroom. Legend: see greybox_level.gd.
+## a fenced parking lot below it (truck, parked cars, street lamps, gate);
+## the mannequin starts in the top-right room. Bulky loot (B) waits in the
+## archive, top-left, which is as far from the entrance as the showroom.
+## Legend: see greybox_level.gd. Outdoor dressing: greybox_01_decor.gd.
 
 const LAYOUT: PackedStringArray = [
 	"#####################################",
@@ -31,6 +32,16 @@ const LAYOUT: PackedStringArray = [
 	",,,,,,,,,,,,,,,,PP,PP,,,,,,,,,,,,,,,,",
 	",,,,,,,,,,,,,,,,,,,,,,,,,,VVVV,,,,,,,",
 	",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,",
+	",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,",
+	",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,",
+	",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,",
+	",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,",
+	",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,",
+	",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,",
+	",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,",
+	",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,",
+	",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,",
+	",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,",
 ]
 
 const ITEM_POOL: Array[ItemData] = [
@@ -58,8 +69,12 @@ func _get_item_pool() -> Array[ItemData]:
 
 
 func _get_decor() -> Array[Array]:
-	return Greybox01Decor.ENTRIES
+	return Greybox01Decor.entries()
 
 
 func _get_bulky_pool() -> Array[ItemData]:
 	return BULKY_POOL
+
+
+func _get_sign_key() -> String:
+	return "WORLD_COMPANY_SIGN"

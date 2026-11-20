@@ -20,7 +20,7 @@ const HASH_RANGE: float = 65536.0
 var round_manager: RoundManager = null
 var monster: Mannequin = null
 
-var _lights: Array[OmniLight3D] = []
+var _lights: Array[Light3D] = []
 var _base_energy: Array[float] = []
 
 
@@ -37,7 +37,7 @@ func _process(_delta: float) -> void:
 		light.light_energy = _base_energy[index] * factor
 
 
-func add_light(light: OmniLight3D) -> void:
+func add_light(light: Light3D) -> void:
 	_lights.append(light)
 	_base_energy.append(light.light_energy)
 

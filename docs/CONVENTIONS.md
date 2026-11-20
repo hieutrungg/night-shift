@@ -139,7 +139,7 @@ Thêm:
 - **Không bao giờ viết chữ người chơi nhìn thấy trực tiếp** vào code hay scene. Dùng khóa dịch:
   - trong scene: đặt `text` của Label/Button là khóa (ví dụ `UI_HOST`), Godot tự dịch.
   - trong code: `tr("UI_HOST")`.
-- Khóa viết `UPPER_SNAKE_CASE` có tiền tố: `UI_` (menu), `HUD_`, `ITEM_`, `ROUND_`, `MSG_` (thông báo), `SET_` (settings), `ERR_`.
+- Khóa viết `UPPER_SNAKE_CASE` có tiền tố: `UI_` (menu), `HUD_`, `ITEM_`, `ROUND_`, `MSG_` (thông báo), `SET_` (settings), `ERR_`, `WORLD_` (chữ trong thế giới game, ví dụ biển hiệu `Label3D`).
 - Tất cả bản dịch nằm trong **một file** `res://i18n/translations.csv`, cột: `keys,en,vi`. Mỗi khóa mới phải có đủ cả `en` và `vi` trong cùng thay đổi.
 - Chuỗi có biến dùng placeholder có tên, không nối chuỗi:
   `tr("HUD_QUOTA").format({"current": 120, "target": 300})` với bản dịch `Quota: {current}/{target}`.

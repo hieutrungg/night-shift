@@ -6,6 +6,7 @@ HUD_CLOSE_DOOR,[E] Close door,[E] Đóng cửa
 HUD_PICK_UP,[E] Pick up {item},[E] Nhặt {item}
 HUD_HOLDING,"Holding: {item} (${value}) · [G] Drop","Đang cầm: {item} (${value}) · [G] Thả"
 HUD_CARRYING_BULKY,"Carrying: {item} (${value}) · heavy, very slow · [G] Drop","Đang khiêng: {item} (${value}) · nặng, đi rất chậm · [G] Thả"
+WORLD_COMPANY_SIGN,LUMEN GARMENT CO.,CÔNG TY MAY LUMEN
 ITEM_UNKNOWN,Unknown item,Món đồ lạ
 ITEM_RADIO,Old radio,Radio cũ
 ITEM_LAMP,Desk lamp,Đèn bàn
