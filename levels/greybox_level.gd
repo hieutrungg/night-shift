@@ -113,6 +113,7 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	Sfx.clear_cache()
 	PropFactory.clear_cache()
+	LootGlow.clear_cache()
 
 
 ## The player controlled on this machine (null until spawned).

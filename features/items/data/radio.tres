@@ -1,11 +1,12 @@
-[gd_resource type="Resource" script_class="ItemData" format=3]
+[gd_resource type="Resource" script_class="ItemData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://features/items/item_data.gd" id="1_data"]
+[ext_resource type="PackedScene" path="res://assets/models/kenney_furniture/radio.glb" id="2_model"]
 
 [resource]
 script = ExtResource("1_data")
 name_key = "ITEM_RADIO"
 value = 40
-size = Vector3(0.35, 0.22, 0.15)
-color = Color(0.45, 0.12, 0.1, 1)
-mass = 2.5
+mass = 4.0
+model = ExtResource("2_model")
+model_scale = 2.0

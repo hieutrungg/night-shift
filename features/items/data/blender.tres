@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://features/items/item_data.gd" id="1_data"]
+[ext_resource type="PackedScene" path="res://assets/models/kenney_furniture/kitchenBlender.glb" id="2_model"]
+
+[resource]
+script = ExtResource("1_data")
+name_key = "ITEM_BLENDER"
+value = 45
+mass = 3.0
+model = ExtResource("2_model")
+model_scale = 2.0

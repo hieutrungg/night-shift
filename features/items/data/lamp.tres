@@ -1,11 +1,12 @@
-[gd_resource type="Resource" script_class="ItemData" format=3]
+[gd_resource type="Resource" script_class="ItemData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://features/items/item_data.gd" id="1_data"]
+[ext_resource type="PackedScene" path="res://assets/models/kenney_furniture/lampSquareTable.glb" id="2_model"]
 
 [resource]
 script = ExtResource("1_data")
 name_key = "ITEM_LAMP"
 value = 25
-size = Vector3(0.2, 0.45, 0.2)
-color = Color(0.9, 0.8, 0.3, 1)
-mass = 1.5
+mass = 2.0
+model = ExtResource("2_model")
+model_scale = 2.0

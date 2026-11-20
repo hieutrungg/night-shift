@@ -186,12 +186,15 @@ func _check_item(player: Player, item: Item, far_item: Item) -> void:
 	_check(player.held_item == item and item.freeze and item.holder_id == player.get_peer_id(),
 		"item picked up and frozen")
 	_check(item.global_position.distance_to(hold_point.global_position) < 0.05, "held item follows hold point")
+	var visual := item.get_node_or_null(^"Visual") as Node3D
+	_check(visual != null and is_equal_approx(visual.scale.x, Item.HELD_SCALE), "loot has a model, drawn smaller while held")
 	far_item.request_pick_up()
 	await _physics_frames(5)
 	_check(player.held_item == item and not far_item.is_held(), "cannot hold two items")
 	player.drop_held_item()
 	await _physics_frames(60)
 	_check(player.held_item == null and not item.freeze and not item.is_held(), "item dropped")
+	_check(visual == null or is_equal_approx(visual.scale.x, 1.0), "dropped loot is full size again")
 	_check(item.global_position.y > -0.5, "dropped item stays above ground")
 	# Some loot tumbles for a while; compare once it has settled.
 	for _frame in ITEM_SETTLE_FRAMES:

@@ -7,9 +7,12 @@ HUD_PICK_UP,[E] Pick up {item},[E] Nhặt {item}
 HUD_HOLDING,"Holding: {item} (${value}) · [G] Drop","Đang cầm: {item} (${value}) · [G] Thả"
 ITEM_UNKNOWN,Unknown item,Món đồ lạ
 ITEM_RADIO,Old radio,Radio cũ
-ITEM_TOOLBOX,Toolbox,Hộp đồ nghề
 ITEM_LAMP,Desk lamp,Đèn bàn
-ITEM_VASE,Ceramic vase,Bình gốm
+ITEM_LAPTOP,Laptop,Máy tính xách tay
+ITEM_TOASTER,Toaster,Máy nướng bánh mì
+ITEM_BLENDER,Blender,Máy xay sinh tố
+ITEM_SPEAKER,Speaker,Loa
+ITEM_BOOKS,Stack of books,Chồng sách
 UI_HOST,Host game,Tạo phòng
 UI_JOIN,Join,Vào phòng
 UI_QUIT,Quit,Thoát

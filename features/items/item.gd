@@ -8,6 +8,10 @@ extends RigidBody3D
 const NO_HOLDER: int = 0
 ## Caps the drop push a client may ask for.
 const MAX_DROP_PUSH: float = 3.0
+## Held loot is drawn smaller so big things (radio, speaker) do not cover the view.
+const HELD_SCALE: float = 0.7
+## Loot glows faintly so it can be spotted in dark rooms (share of its colour).
+const GLOW_ENERGY: float = 0.15
 
 @export var data: ItemData
 
@@ -21,6 +25,8 @@ var synced_transform: Transform3D = Transform3D.IDENTITY:
 			global_transform = value
 
 var _follow_target: Node3D = null
+## Holds the model so it can be shrunk while held without moving its centre.
+var _visual: Node3D = null
 var _default_layer: int = 1
 
 @onready var _mesh_instance: MeshInstance3D = $Mesh
@@ -127,6 +133,7 @@ func _set_holder(peer_id: int) -> void:
 	collision_layer = 0
 	_interactable.enabled = false
 	player.set_held_item(self)
+	_set_visual_scale(HELD_SCALE)
 	_sound.stream = Sfx.pickup()
 	_sound.play()
 
@@ -142,6 +149,7 @@ func _release(at: Transform3D, push: Vector3) -> void:
 	if player != null and player.held_item == self:
 		player.set_held_item(null)
 	_sound.stream = Sfx.item_drop()
+	_set_visual_scale(1.0)
 	_sound.play()
 	if not multiplayer.is_server():
 		return
@@ -153,7 +161,13 @@ func _release(at: Transform3D, push: Vector3) -> void:
 
 
 func _build_shape() -> void:
-	# Each instance gets its own mesh and shape so sizes don't leak between items.
+	mass = data.mass
+	# Each instance gets its own shape so sizes don't leak between items.
+	var shape := BoxShape3D.new()
+	_collision.shape = shape
+	if data.model != null:
+		shape.size = _add_model()
+		return
 	var material := StandardMaterial3D.new()
 	material.albedo_color = data.color
 	material.roughness = 0.7
@@ -161,10 +175,23 @@ func _build_shape() -> void:
 	mesh.size = data.size
 	mesh.material = material
 	_mesh_instance.mesh = mesh
-	var shape := BoxShape3D.new()
 	shape.size = data.size
-	_collision.shape = shape
-	mass = data.mass
+
+
+## Adds the loot model centred on the body (so it spins and is held around its
+## middle) and returns the size of its box.
+func _add_model() -> Vector3:
+	var model := data.model.instantiate() as Node3D
+	model.scale = Vector3.ONE * data.model_scale
+	var box := ModelBounds.local_aabb(model)
+	var scaled := AABB(box.position * model.scale, box.size * model.scale)
+	model.position = -scaled.get_center()
+	LootGlow.apply(model, GLOW_ENERGY)
+	_visual = Node3D.new()
+	_visual.name = "Visual"
+	_visual.add_child(model)
+	add_child(_visual)
+	return scaled.size
 
 
 func _can_be_picked_up_by(player: Player) -> bool:
@@ -173,3 +200,8 @@ func _can_be_picked_up_by(player: Player) -> bool:
 
 func _on_interacted(_player: Player) -> void:
 	request_pick_up()
+
+
+func _set_visual_scale(factor: float) -> void:
+	if _visual != null:
+		_visual.scale = Vector3.ONE * factor

@@ -34,9 +34,12 @@ const LAYOUT: PackedStringArray = [
 
 const ITEM_POOL: Array[ItemData] = [
 	preload("res://features/items/data/radio.tres"),
-	preload("res://features/items/data/toolbox.tres"),
 	preload("res://features/items/data/lamp.tres"),
-	preload("res://features/items/data/vase.tres"),
+	preload("res://features/items/data/laptop.tres"),
+	preload("res://features/items/data/toaster.tres"),
+	preload("res://features/items/data/blender.tres"),
+	preload("res://features/items/data/speaker.tres"),
+	preload("res://features/items/data/books.tres"),
 ]
 
 
