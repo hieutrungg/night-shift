@@ -39,6 +39,8 @@ const POSES: Array[Dictionary] = [
 ]
 
 @export var plastic_color: Color = Color(0.88, 0.84, 0.78)
+## Pose applied when the body is ready (decoys keep it forever).
+@export var start_pose: int = 0
 
 var _model: Node3D
 var _skeleton: Skeleton3D
@@ -49,7 +51,7 @@ func _ready() -> void:
 	add_child(_model)
 	_skeleton = _model.find_child("Skeleton3D") as Skeleton3D
 	_apply_material()
-	set_pose(0)
+	set_pose(start_pose)
 
 
 static func pose_count() -> int:

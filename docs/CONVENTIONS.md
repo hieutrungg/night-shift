@@ -52,6 +52,7 @@ res://
     doors/
     monster/
     round/         đồng hồ, chỉ tiêu, xe, kết quả vòng
+    props/         đồ trang trí đứng yên (PropFactory), dữ liệu đặt đồ nằm ở từng level
   levels/
     greybox_01/    map dựng bằng khối hộp
   ui/

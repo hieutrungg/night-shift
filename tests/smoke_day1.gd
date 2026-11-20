@@ -7,6 +7,11 @@ const LEVEL_SCENE: PackedScene = preload("res://levels/greybox_01/greybox_01.tsc
 ## Ten seconds of physics for the mannequin to reach the next room.
 const MONSTER_KILL_FRAMES: int = 600
 const SHUTDOWN_FRAMES: int = 30
+## Shrinks footprints slightly so touching a cell edge is not a clash.
+const FOOTPRINT_TOLERANCE: float = 0.02
+## A navmesh path must end this close to the loot spawn.
+const PATH_END_TOLERANCE: float = 0.75
+const MIN_DECOR_COUNT: int = 100
 ## Up to five seconds for a dropped item to stop rolling.
 const ITEM_SETTLE_FRAMES: int = 300
 
@@ -48,6 +53,7 @@ func _run() -> void:
 	_check(level.get_doors().size() == 17, "17 doors built (got %d)" % level.get_doors().size())
 	_check(level.get_items().size() == 15, "15 items spawned (got %d)" % level.get_items().size())
 
+	_check_decor(level)
 	await _check_walking(player)
 	await _check_door(player, level.get_doors()[0])
 	await _check_item(player, level.get_item(0), level.get_item(14))
@@ -105,6 +111,37 @@ func _check_sounds() -> void:
 		synth_ok = synth_ok and wav != null and wav.data.size() > 0 and wav.loop_mode == AudioStreamWAV.LOOP_FORWARD
 	_check(synth_ok, "synthesised sounds are valid")
 	_check(Sfx.footstep() == Sfx.footstep(), "sounds are built once and cached")
+
+
+func _check_decor(level: GreyboxLevel) -> void:
+	var footprints := level.get_decor_footprints()
+	_check(footprints.size() >= MIN_DECOR_COUNT, "decor placed (%d props on the floor)" % footprints.size())
+	var reserved := level.get_reserved_cells()
+	var clashes: PackedStringArray = []
+	var in_walls: PackedStringArray = []
+	for footprint in footprints:
+		var id: String = footprint["id"]
+		var rect: Rect2 = footprint["rect"]
+		rect = rect.grow(-FOOTPRINT_TOLERANCE)
+		for cell in reserved:
+			if rect.intersects(Rect2(Vector2(cell), Vector2.ONE)):
+				clashes.append("%s@%s on %s" % [id, rect.get_center().snappedf(0.1), cell])
+		for point: Vector2 in [rect.position, rect.end, Vector2(rect.position.x, rect.end.y),
+				Vector2(rect.end.x, rect.position.y), rect.get_center()]:
+			if level.is_wall_cell(Vector2i(point.floor())):
+				in_walls.append("%s@%s" % [id, rect.get_center().snappedf(0.1)])
+				break
+	_check(clashes.is_empty(), "decor keeps doors, loot and spawns clear %s" % str(clashes))
+	_check(in_walls.is_empty(), "no decor inside walls %s" % str(in_walls))
+	var map := level.get_world_3d().navigation_map
+	var start := level.get_player_spawns()[0]
+	var unreachable: PackedStringArray = []
+	for spawn in level.get_item_spawns():
+		var path := NavigationServer3D.map_get_path(map, start, spawn, true)
+		var end := path[path.size() - 1] if not path.is_empty() else start
+		if Vector2(end.x - spawn.x, end.z - spawn.z).length() > PATH_END_TOLERANCE:
+			unreachable.append(str(spawn.snappedf(0.1)))
+	_check(unreachable.is_empty(), "every loot spawn reachable from the parking lot %s" % str(unreachable))
 
 
 func _check_walking(player: Player) -> void:
@@ -182,7 +219,7 @@ func _check_round(level: GreyboxLevel, player: Player, item: Item) -> void:
 
 	var value := item.data.value
 	var items_before := level.get_items().size()
-	_teleport(player, van.global_position + Vector3(0.0, 0.1 - van.size.y * 0.5, -(van.size.z * 0.5 + 1.0)))
+	_teleport(player, van.approach_point())
 	await _physics_frames(5)
 	van.request_deposit()
 	await _physics_frames(5)

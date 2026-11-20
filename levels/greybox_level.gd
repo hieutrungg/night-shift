@@ -25,7 +25,6 @@ const ITEM_SCENE: PackedScene = preload("res://features/items/item.tscn")
 const HUD_SCENE: PackedScene = preload("res://ui/hud/hud.tscn")
 const VAN_SCENE: PackedScene = preload("res://features/round/van.tscn")
 const MONSTER_SCENE: PackedScene = preload("res://features/monster/mannequin.tscn")
-const VAN_HEIGHT: float = 2.0
 const RESTART_FLUSH_FRAMES: int = 2
 ## Time for in-flight player movement packets to land before despawning.
 const RESTART_SYNC_STOP_SEC: float = 0.25
@@ -72,6 +71,8 @@ var _player_spawns: Array[Vector3] = []
 var _item_spawns: Array[Vector3] = []
 var _van_cells: Array[Vector3] = []
 var _monster_spawns: Array[Vector3] = []
+## Footprints of placed decor, for placement checks: [{"id": String, "rect": Rect2}].
+var _decor_footprints: Array[Dictionary] = []
 
 var _navigation: NavigationRegion3D
 var _geometry: Node3D
@@ -79,7 +80,6 @@ var _wall_material: StandardMaterial3D
 var _ceiling_material: StandardMaterial3D
 var _ground_material: StandardMaterial3D
 var _floor_material: StandardMaterial3D
-var _van_material: StandardMaterial3D
 
 
 func _ready() -> void:
@@ -96,6 +96,8 @@ func _ready() -> void:
 	_geometry.name = "Geometry"
 	_navigation.add_child(_geometry)
 	_build()
+	# Decor goes in before the bake so the mannequin paths around furniture.
+	_place_decor()
 	if multiplayer.is_server():
 		_bake_navigation()
 	_setup_round()
@@ -110,6 +112,7 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	Sfx.clear_cache()
+	PropFactory.clear_cache()
 
 
 ## The player controlled on this machine (null until spawned).
@@ -143,6 +146,10 @@ func get_player_spawns() -> Array[Vector3]:
 	return _player_spawns
 
 
+func get_item_spawns() -> Array[Vector3]:
+	return _item_spawns
+
+
 func get_round() -> RoundManager:
 	return _round
 
@@ -150,6 +157,32 @@ func get_round() -> RoundManager:
 ## Null when the layout has no van cells.
 func get_van() -> Van:
 	return _van
+
+
+func get_decor_footprints() -> Array[Dictionary]:
+	return _decor_footprints
+
+
+## Cells decor must leave free: both sides of every door (the panel swings
+## there), loot spawns, the mannequin start and player spawns.
+func get_reserved_cells() -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	for row in _rows.size():
+		for col in _rows[row].length():
+			var cell := _rows[row][col]
+			if "iMP".contains(cell):
+				cells.append(Vector2i(col, row))
+			elif cell == "D":
+				for offset: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+					var next := Vector2i(col, row) + offset
+					if not _is_wall(next.x, next.y) and _is_inside(next):
+						cells.append(next)
+	return cells
+
+
+## True when the cell is a wall (decor must not be inside one).
+func is_wall_cell(cell: Vector2i) -> bool:
+	return _is_wall(cell.x, cell.y)
 
 
 func get_light_flicker() -> LightFlicker:
@@ -227,6 +260,11 @@ func _get_layout() -> PackedStringArray:
 	return PackedStringArray()
 
 
+## Override: decor entries, see Greybox01Decor for the format.
+func _get_decor() -> Array[Array]:
+	return []
+
+
 ## Override: kinds of loot that can appear at item spawns.
 func _get_item_pool() -> Array[ItemData]:
 	return []
@@ -249,7 +287,6 @@ func _create_materials() -> void:
 	_ceiling_material = _make_textured_material(CEILING_TEXTURE, CEILING_TILE_M, Color(0.8, 0.8, 0.8))
 	_floor_material = _make_textured_material(FLOOR_TEXTURE, FLOOR_TILE_M, Color.WHITE)
 	_ground_material = _make_textured_material(GROUND_TEXTURE, GROUND_TILE_M, Color(0.8, 0.8, 0.8))
-	_van_material = _make_material(Color(0.8, 0.8, 0.82))
 
 
 func _make_material(color: Color) -> StandardMaterial3D:
@@ -402,12 +439,10 @@ func _build_van() -> void:
 	for cell in _van_cells:
 		center += cell
 	center /= _van_cells.size()
-	var size := Vector3(_van_cells.size() * CELL, VAN_HEIGHT, 2.0 * CELL)
 	_van = VAN_SCENE.instantiate() as Van
 	_van.name = "Van"
-	_van.size = size
-	_van.color = _van_material.albedo_color
-	_van.position = center + Vector3.UP * size.y * 0.5
+	# The truck model stands on the ground at the centre of the V cells.
+	_van.position = center
 	# Inside Geometry so the navigation mesh routes around it.
 	_geometry.add_child(_van)
 
@@ -695,3 +730,35 @@ func _setup_atmosphere() -> void:
 func _on_collected_changed(collected: int, _quota: int) -> void:
 	if collected > 0 and _van != null:
 		_van.play_deposit()
+
+
+func _is_inside(cell: Vector2i) -> bool:
+	return cell.y >= 0 and cell.y < _rows.size() and cell.x >= 0 and cell.x < _rows[cell.y].length()
+
+
+func _place_decor() -> void:
+	var decor_root := Node3D.new()
+	decor_root.name = "Decor"
+	_geometry.add_child(decor_root)
+	for entry in _get_decor():
+		var id: String = entry[0]
+		var x: float = entry[1]
+		var z: float = entry[2]
+		var turn: float = entry[3]
+		var lift: float = entry[4] if entry.size() > 4 else 0.0
+		var pose: int = entry[5] if entry.size() > 5 else 0
+		var prop := PropFactory.create(id, pose)
+		prop.position = Vector3(x, lift, z)
+		prop.rotation.y = deg_to_rad(turn)
+		decor_root.add_child(prop)
+		if is_zero_approx(lift):
+			_decor_footprints.append({"id": id, "rect": _footprint(id, Vector2(x, z), turn)})
+
+
+## Floor area covered by a prop after turning it.
+func _footprint(id: String, centre: Vector2, turn_deg: float) -> Rect2:
+	var size := PropFactory.size_of(id)
+	var angle := deg_to_rad(turn_deg)
+	var width := absf(size.x * cos(angle)) + absf(size.z * sin(angle))
+	var depth := absf(size.x * sin(angle)) + absf(size.z * cos(angle))
+	return Rect2(centre - Vector2(width, depth) * 0.5, Vector2(width, depth))

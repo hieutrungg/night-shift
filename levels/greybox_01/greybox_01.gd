@@ -46,3 +46,7 @@ func _get_layout() -> PackedStringArray:
 
 func _get_item_pool() -> Array[ItemData]:
 	return ITEM_POOL
+
+
+func _get_decor() -> Array[Array]:
+	return Greybox01Decor.ENTRIES

@@ -4,6 +4,10 @@ Mục tiêu: biến tòa nhà khối hộp thành **trụ sở bỏ hoang của 
 
 Thứ tự làm (theo yêu cầu): **cửa → xe → nội thất từng phòng → đồ nhặt (sau cùng)**.
 
+> **Trạng thái (cập nhật):** cửa, xe, nội thất 12 phòng + hành lang + bãi xe **đã xong**. Còn lại: **đồ nhặt** (đợt 7).
+> Khác so với kế hoạch: "Lotta tra Como" thực tế là **tủ ngăn kéo thấp** (2,06 × 0,87 m), không phải tủ cao, nên tủ cao trong phòng tủ đồ dùng `bookcaseClosedDoors` của Kenney. Old Door là một mesh liền (khung + cánh mở hé), được tách và xoay cánh về vị trí đóng bằng code (`features/doors/door_model.gd`). Đồ Kenney được làm xám/tối cho hợp không khí. Đo được ~270–290 FPS (1280×720, Radeon 880M), không cần cắt giảm.
+> Dữ liệu đặt đồ: `levels/greybox_01/greybox_01_decor.gd`. Test tự động kiểm tra luật đặt đồ và đường đi tới mọi ô đồ nhặt.
+
 ---
 
 ## 1. Asset

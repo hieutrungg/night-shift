@@ -195,7 +195,7 @@ func _run_client_round(level: GreyboxLevel, me: Player, item: Item, i_won: bool)
 	if i_won:
 		await _seconds(WINNER_HOLD_SEC)
 		var van := level.get_van()
-		_teleport(me, van.global_position + Vector3(0.0, 0.1 - van.size.y * 0.5, -(van.size.z * 0.5 + 1.0)))
+		_teleport(me, van.approach_point())
 		await _seconds(POSITION_SETTLE_SEC)
 		van.request_deposit()
 	var deposited := await _wait_until(

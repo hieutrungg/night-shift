@@ -6,8 +6,6 @@
 [node name="Van" type="StaticBody3D"]
 script = ExtResource("1_van")
 
-[node name="Mesh" type="MeshInstance3D" parent="."]
-
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 
 [node name="Interactable" type="Node" parent="."]

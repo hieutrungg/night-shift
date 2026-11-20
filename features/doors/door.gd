@@ -20,10 +20,14 @@ var _tween: Tween
 @onready var _panel: Node3D = $Hinge/Panel
 @onready var _interactable: Interactable = $Hinge/Panel/Interactable
 @onready var _sound: AudioStreamPlayer3D = $Hinge/Panel/Sound
+@onready var _frame_mesh: MeshInstance3D = $Frame
+@onready var _panel_mesh: MeshInstance3D = $Hinge/PanelMesh
 
 
 func _ready() -> void:
 	add_to_group(GROUP)
+	_frame_mesh.mesh = DoorModel.frame_mesh()
+	_panel_mesh.mesh = DoorModel.panel_mesh()
 	_interactable.interacted.connect(_on_interacted)
 	_update_prompt()
 
