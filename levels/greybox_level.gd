@@ -694,14 +694,6 @@ func deposit_for_boarding(player: Player) -> void:
 	_on_item_deposited(player.held_item, player.get_peer_id())
 
 
-func _count_items_left() -> int:
-	var count := 0
-	for item in _items:
-		if is_instance_valid(item) and not item.is_queued_for_deletion():
-			count += 1
-	return count
-
-
 func _on_round_started(_duration_sec: float, _quota: int) -> void:
 	if _van != null:
 		_van.accepting = true
@@ -751,6 +743,9 @@ func _on_player_entered(node: Node) -> void:
 	if player == null:
 		return
 	player.trip = _trip
+	# The seat list may arrive before this player node does (on clients).
+	if _trip != null:
+		player.seat_index = _trip.seats.find(player.get_peer_id())
 	if player.get_peer_id() != multiplayer.get_unique_id():
 		return
 	_player = player

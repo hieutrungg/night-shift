@@ -105,6 +105,8 @@ func _ready() -> void:
 	_check(trip.countdown < 0.0, "no countdown below quota")
 	trip._try_board(1)
 	_check(player.seat_index < 0 and trip.driver_id == 0, "driver can disembark")
+	_check(trip.van.distance_to(player.global_position) <= GameConfig.INTERACT_MAX_DISTANCE,
+		"getting off mid-round leaves you beside the truck")
 	player.global_position = trip.van.approach_point()
 	trip._try_board(1)
 	_check(player.seat_index >= 0, "player can board again")

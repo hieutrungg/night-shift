@@ -169,7 +169,7 @@ const ENTRIES: Array[Array] = [
 	# Parking lot near the building.
 	["cone", 24.0, 22.4, 0],
 	["cone", 32.3, 22.4, 0],
-	["cone", 23.6, 25.4, 0],
+	["cone", 23.0, 22.5, 0],
 	["crate", 34.0, 24.5, 15],
 	["crate", 35.3, 24.2, -10],
 

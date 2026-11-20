@@ -3,10 +3,10 @@ WORLD_SECURITY_SIGN,SECURITY,BẢO VỆ
 UI_GAME_TITLE,Night Shift,Ca Trực Đêm
 HUD_CONTROLS_HINT,"WASD: move · Shift: sprint · Ctrl: crouch · Space: jump · F: flashlight · E: use · G: drop · H: board · Esc: mouse","WASD: di chuyển · Shift: chạy · Ctrl: ngồi · Space: nhảy · F: đèn pin · E: dùng · G: thả · H: lên xe · Esc: chuột"
 HUD_BOARD,[H] Board the truck,[H] Lên xe
-HUD_DISEMBARK,[H] Leave the truck,[H] Xuống xe
-HUD_DRIVER_HINT,Hold [G] to leave,Giữ [G] để cho xe chạy
+HUD_DISEMBARK,[H] Get off,[H] Xuống xe
+HUD_DRIVER_HINT,Hold [G] to drive away,Giữ [G] để cho xe chạy
 HUD_DRIVER_NAME,Driver: {name},Tài xế: {name}
-HUD_YOU_ARE_DRIVER,"You are the driver! Hold [G] for 3 seconds to leave anyone outside behind. Quota required.","Bạn là tài xế! Giữ [G] 3 giây để cho xe chạy và bỏ lại người chưa lên xe. Cần đủ chỉ tiêu."
+HUD_YOU_ARE_DRIVER,"You are the driver! Hold [G] for 3 seconds to drive away, leaving anyone outside behind. Needs the quota.","Bạn là tài xế! Giữ [G] 3 giây để cho xe chạy và bỏ lại người chưa lên xe. Cần đủ chỉ tiêu."
 HUD_QUOTA_MISSING,Quota short by ${missing},Chưa đủ chỉ tiêu: còn thiếu ${missing}
 HUD_QUOTA_REACHED,Quota reached! Board the truck to leave.,Đã đủ chỉ tiêu! Lên xe để rời đi.
 HUD_DEPARTURE_WARNING,TRUCK DEPARTING!,XE SẮP CHẠY!

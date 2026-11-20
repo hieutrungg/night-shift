@@ -280,16 +280,20 @@ func _refresh_trip(delta: float) -> void:
 	_notice_label.visible = _notice_left > 0.0
 	var lines: Array[String] = []
 	var seated := _player.seat_index >= 0
+	# Once the truck is about to leave only the warning and the countdown matter.
+	var leaving_soon := trip.hold_elapsed >= 0.0 or trip.countdown >= 0.0
 	var nearby := trip.van.distance_to(_player.global_position) <= GameConfig.INTERACT_MAX_DISTANCE
-	if seated and (_round.is_playing() or (_round.phase == RoundManager.Phase.ARRIVING and trip.arrival_elapsed >= GameConfig.ARRIVAL_SEC)):
+	if leaving_soon:
+		pass
+	elif seated and (_round.is_playing() or (_round.phase == RoundManager.Phase.ARRIVING and trip.arrival_elapsed >= GameConfig.ARRIVAL_SEC)):
 		lines.append(tr("HUD_DISEMBARK"))
 		if trip.driver_id == local_id:
 			lines.append(tr("HUD_DRIVER_HINT"))
 	elif nearby and _round.is_playing():
 		lines.append(tr("HUD_BOARD"))
-	if (nearby or seated) and trip.driver_id != 0 and trip.driver_id != local_id:
+	if not leaving_soon and (nearby or seated) and trip.driver_id != 0 and trip.driver_id != local_id:
 		lines.append(tr("HUD_DRIVER_NAME").format({"name": Net.players.get(trip.driver_id, "")}))
-	if seated and _round.is_playing() and _round.collected < _round.quota:
+	if not leaving_soon and seated and _round.is_playing() and _round.collected < _round.quota:
 		lines.append(tr("HUD_QUOTA_MISSING").format({"missing": _round.quota - _round.collected}))
 	if trip.countdown >= 0.0:
 		lines.append(tr("HUD_DEPARTURE_COUNTDOWN").format({"seconds": ceili(trip.countdown)}))

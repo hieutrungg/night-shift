@@ -2,6 +2,15 @@ class_name TripController
 extends Node
 ## The host owns seat order and all departure decisions.
 
+## Van rotation while driving up the lane (truck along Z) and once parked (along X).
+const LANE_HEADING: float = PI * 0.5
+const PARKED_HEADING: float = 0.0
+## Gap between players getting off beside the parked truck.
+const DISEMBARK_SPACING: float = 1.0
+## The truck turns on the spot at the lane corner: the aisle is only wide
+## enough for it to drive straight, not to swing round while moving.
+const TURN_SEC: float = 1.2
+
 
 var level: GreyboxLevel
 var van: Van
@@ -124,7 +133,9 @@ func _disembark(peer_id: int) -> void:
 				break
 	_boarding_order.erase(peer_id)
 	_sync_seats.rpc(seats, driver_id)
-	_place_on_ground.rpc(peer_id, index)
+	# Getting off mid-round puts you right beside the truck; on arrival the
+	# player spawns (P) are used so the team lines up near the entrance.
+	_place_on_ground.rpc(peer_id, index, round_manager.phase == RoundManager.Phase.PLAYING)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -140,9 +151,14 @@ func _sync_seats(new_seats: Array[int], new_driver: int) -> void:
 
 
 @rpc("authority", "call_local", "reliable")
-func _place_on_ground(peer_id: int, index: int) -> void:
+func _place_on_ground(peer_id: int, index: int, beside_truck: bool) -> void:
 	var player := Player.find_by_peer(get_tree(), peer_id)
-	if player != null and player.is_local():
+	if player == null or not player.is_local():
+		return
+	if beside_truck:
+		var offset := (float(index) - float(GameConfig.MAX_PLAYERS - 1) * 0.5) * DISEMBARK_SPACING
+		player.global_position = van.approach_point() + Vector3(offset, 0.0, 0.0)
+	else:
 		var spawns := level.get_player_spawns()
 		player.global_position = spawns[index % spawns.size()]
 
@@ -223,10 +239,15 @@ func _depart(reason: RoundManager.EndReason) -> void:
 	_start_motion.rpc(false)
 
 
+## The truck drives straight up the central lane from the gate, turns on the
+## spot at the corner, then drives along the aisle in front of the building, so it never crosses
+## the parking stalls (and the reverse when leaving). Every peer runs the same
+## tween from one reliable event; no per-frame position is sent.
 @rpc("authority", "call_local", "reliable")
 func _start_motion(arriving: bool) -> void:
-	var outside := Vector3(float(level.get_layout_width()) * 0.5, parked_position.y, float(level.get_layout_depth()) + GameConfig.TRUCK_OUTSIDE_DISTANCE)
-	var inside := Vector3(outside.x, parked_position.y, float(level.get_layout_depth()) - GameConfig.TRUCK_WAYPOINT_INSET)
+	var lane_x := float(level.get_layout_width()) * 0.5
+	var outside := Vector3(lane_x, parked_position.y, float(level.get_layout_depth()) + GameConfig.TRUCK_OUTSIDE_DISTANCE)
+	var corner := Vector3(lane_x, parked_position.y, parked_position.z)
 	var gate := level.get_node(^"Navigation/Geometry/Gate") as Node3D
 	for shape in gate.find_children("*", "CollisionShape3D", true, false):
 		(shape as CollisionShape3D).set_deferred(&"disabled", true)
@@ -234,18 +255,26 @@ func _start_motion(arriving: bool) -> void:
 	gate_tween.tween_property(gate, "position:x", ExteriorBuilder.GATE_WIDTH, GameConfig.GATE_MOVE_SEC)
 	if arriving:
 		van.position = outside
-		van.rotation.y = PI * 0.5
+		van.rotation.y = LANE_HEADING
+	var duration := GameConfig.ARRIVAL_SEC if arriving else GameConfig.DEPARTURE_SEC
+	var drive_time := duration - GameConfig.GATE_MOVE_SEC - TURN_SEC
+	var lane_length := outside.distance_to(corner)
+	var aisle_length := corner.distance_to(parked_position)
+	# Split the time by distance so the truck keeps one speed on both legs.
+	var lane_time := drive_time * lane_length / maxf(lane_length + aisle_length, 0.01)
+	var aisle_time := drive_time - lane_time
 	var tween := create_tween()
 	motion_tween = tween
-	var duration := GameConfig.ARRIVAL_SEC if arriving else GameConfig.DEPARTURE_SEC
 	tween.tween_interval(GameConfig.GATE_MOVE_SEC)
 	tween.tween_callback(van.start_engine)
-	tween.tween_property(van, "position", inside, (duration - GameConfig.GATE_MOVE_SEC) * 0.5)
-	if not arriving:
-		tween.parallel().tween_property(van, "rotation:y", PI * 0.5, (duration - GameConfig.GATE_MOVE_SEC) * 0.5)
-	tween.tween_property(van, "position", parked_position if arriving else outside, (duration - GameConfig.GATE_MOVE_SEC) * 0.5)
 	if arriving:
-		tween.parallel().tween_property(van, "rotation:y", 0.0, (duration - GameConfig.GATE_MOVE_SEC) * 0.5)
+		tween.tween_property(van, "position", corner, lane_time)
+		tween.tween_property(van, "rotation:y", PARKED_HEADING, TURN_SEC)
+		tween.tween_property(van, "position", parked_position, aisle_time)
+	else:
+		tween.tween_property(van, "position", corner, aisle_time)
+		tween.tween_property(van, "rotation:y", LANE_HEADING, TURN_SEC)
+		tween.tween_property(van, "position", outside, lane_time)
 	tween.tween_callback(van.stop_engine)
 	if arriving:
 		tween.tween_callback(_close_gate.bind(gate))
