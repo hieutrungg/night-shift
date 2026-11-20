@@ -12,6 +12,7 @@ const SPRINT: StringName = &"sprint"
 const CROUCH: StringName = &"crouch"
 const INTERACT: StringName = &"interact"
 const DROP: StringName = &"drop"
+const BOARD: StringName = &"board"
 const FLASHLIGHT: StringName = &"flashlight"
 const PAUSE: StringName = &"pause"
 
@@ -26,6 +27,7 @@ static func register_defaults() -> void:
 	_add_key(CROUCH, KEY_CTRL)
 	_add_key(INTERACT, KEY_E)
 	_add_key(DROP, KEY_G)
+	_add_key(BOARD, KEY_H)
 	_add_key(FLASHLIGHT, KEY_F)
 	_add_key(PAUSE, KEY_ESCAPE)
 

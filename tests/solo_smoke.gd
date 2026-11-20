@@ -46,6 +46,10 @@ func _run() -> void:
 	_check(not Net.can_start_game(), "online start rule (2-4 players) is untouched")
 	var player := level.get_player()
 	_check(player != null and player.is_local(), "solo player spawned and controlled locally")
+	var trip := level.get_trip()
+	trip.arrival_elapsed = GameConfig.ARRIVAL_SEC
+	trip._disembark(player.get_peer_id())
+	trip._check_arrival_complete()
 	_check_tuning(level)
 	await _check_pause(level)
 	await _check_death_ends_round(level)
@@ -91,7 +95,8 @@ func _check_restart_and_leave(level: GreyboxLevel) -> void:
 	var old_id := level.get_instance_id()
 	level.restart_round()
 	var next := await _wait_for_level(old_id)
-	_check(next != null and Net.is_solo and next.get_round().is_playing(), "play again starts a new solo round")
+	_check(next != null and Net.is_solo and next.get_round().phase == RoundManager.Phase.ARRIVING, "play again starts a new solo arrival")
+	_check(next != null and next.get_trip().driver_id == 0, "play again resets driver")
 	Net.return_to_menu()
 	var at_menu := await _wait_until(func() -> bool:
 		var scene := get_tree().current_scene
@@ -104,7 +109,7 @@ func _wait_for_level(old_id: int) -> GreyboxLevel:
 	var ready := await _wait_until(func() -> bool:
 		var level := get_tree().current_scene as GreyboxLevel
 		return (level != null and level.get_instance_id() != old_id and level.is_node_ready()
-			and level.get_player() != null and level.get_round().is_playing()), LOAD_TIMEOUT_SEC)
+			and level.get_player() != null and level.get_round().phase != RoundManager.Phase.WAITING), LOAD_TIMEOUT_SEC)
 	return get_tree().current_scene as GreyboxLevel if ready else null
 
 

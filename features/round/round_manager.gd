@@ -7,15 +7,18 @@ extends Node
 signal round_started(duration_sec: float, quota: int)
 signal collected_changed(collected: int, quota: int)
 signal round_ended(success: bool, collected: int, quota: int)
+signal time_expired
 
-enum Phase { WAITING, PLAYING, ENDED }
-enum EndReason { TIME_UP, ALL_COLLECTED, ALL_DEAD }
+enum Phase { WAITING, ARRIVING, PLAYING, DEPARTING, ENDED }
+enum EndReason { TIME_UP, ALL_COLLECTED, ALL_DEAD, TEAM_LEFT, DRIVER_LEFT }
 
 ## Translation key per EndReason, shown on the results screen.
 const END_REASON_KEYS: Array[String] = [
 	"ROUND_REASON_TIME_UP",
 	"ROUND_REASON_ALL_COLLECTED",
 	"ROUND_REASON_ALL_DEAD",
+	"ROUND_REASON_TEAM_LEFT",
+	"ROUND_REASON_DRIVER_LEFT",
 ]
 
 @export var duration_sec: float = GameConfig.ROUND_DURATION_SEC
@@ -26,6 +29,8 @@ var collected: int = 0
 var time_left: float = 0.0
 var success: bool = false
 var end_reason: EndReason = EndReason.TIME_UP
+var survivors: int = 0
+var left_names: Array[String] = []
 
 
 func _process(delta: float) -> void:
@@ -33,7 +38,7 @@ func _process(delta: float) -> void:
 		return
 	time_left = maxf(time_left - delta, 0.0)
 	if time_left <= 0.0 and multiplayer.is_server():
-		finish(EndReason.TIME_UP)
+		time_expired.emit()
 
 
 func is_playing() -> bool:
@@ -55,11 +60,11 @@ func add_collected(amount: int) -> void:
 
 
 ## Host only: ends the round now. A wiped-out team fails whatever it collected.
-func finish(reason: EndReason) -> void:
-	if not multiplayer.is_server() or phase != Phase.PLAYING:
+func finish(reason: EndReason, survivor_count: int = 0, abandoned: Array[String] = []) -> void:
+	if not multiplayer.is_server() or (phase != Phase.PLAYING and phase != Phase.DEPARTING):
 		return
-	var was_success := collected >= quota and reason != EndReason.ALL_DEAD
-	_end.rpc(was_success, collected, quota, reason)
+	var was_success := collected >= quota and reason != EndReason.ALL_DEAD and survivor_count > 0
+	_end.rpc(was_success, collected, quota, reason, survivor_count, abandoned)
 
 
 func get_end_reason_key() -> String:
@@ -68,14 +73,24 @@ func get_end_reason_key() -> String:
 
 @rpc("authority", "call_local", "reliable")
 func _begin(duration: float, quota_value: int) -> void:
-	phase = Phase.PLAYING
+	phase = Phase.ARRIVING
 	duration_sec = duration
 	time_left = duration
 	quota = quota_value
 	collected = 0
 	success = false
-	round_started.emit(duration, quota)
 	collected_changed.emit(collected, quota)
+
+
+@rpc("authority", "call_local", "reliable")
+func begin_playing() -> void:
+	phase = Phase.PLAYING
+	round_started.emit(duration_sec, quota)
+
+
+@rpc("authority", "call_local", "reliable")
+func begin_departing() -> void:
+	phase = Phase.DEPARTING
 
 
 @rpc("authority", "call_local", "reliable")
@@ -86,11 +101,13 @@ func _set_collected(value: int) -> void:
 
 # Final numbers travel with the message so every screen shows the same result.
 @rpc("authority", "call_local", "reliable")
-func _end(was_success: bool, collected_value: int, quota_value: int, reason: int) -> void:
+func _end(was_success: bool, collected_value: int, quota_value: int, reason: int, survivor_count: int, abandoned: Array[String]) -> void:
 	phase = Phase.ENDED
 	end_reason = clampi(reason, 0, END_REASON_KEYS.size() - 1) as EndReason
 	success = was_success
 	collected = collected_value
 	quota = quota_value
+	survivors = survivor_count
+	left_names.assign(abandoned)
 	time_left = 0.0
 	round_ended.emit(success, collected, quota)

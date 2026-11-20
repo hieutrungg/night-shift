@@ -27,6 +27,12 @@ const GROUP: StringName = &"players"
 var held_item: Item = null
 ## Set on every peer by the host (see GreyboxLevel.kill_player).
 var is_dead: bool = false
+var seat_index: int = -1:
+	set(value):
+		seat_index = value
+		if is_node_ready():
+			_footsteps.set_boarded(value >= 0)
+var trip: TripController = null
 ## Replicated so other players see us crouch.
 var crouching: bool = false:
 	set(value):
@@ -64,6 +70,7 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
+	_footsteps.set_boarded(seat_index >= 0)
 	_flashlight.add_to_group(MannequinSight.LIGHT_GROUP)
 	_capsule = _collision.shape as CapsuleShape3D
 	_head_stand_y = _head.position.y
@@ -93,16 +100,36 @@ func _unhandled_input(event: InputEvent) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif is_dead:
 		return
+	elif trip != null and trip.round_manager.phase == RoundManager.Phase.ARRIVING:
+		if event.is_action_pressed(InputActions.BOARD):
+			trip.request_board_toggle()
+		return
+	elif trip != null and trip.round_manager.phase == RoundManager.Phase.DEPARTING:
+		return
 	elif event.is_action_pressed(InputActions.FLASHLIGHT):
 		toggle_flashlight()
 	elif event.is_action_pressed(InputActions.INTERACT):
 		_try_interact()
+	elif event.is_action_pressed(InputActions.BOARD) and trip != null:
+		trip.request_board_toggle()
 	elif event.is_action_pressed(InputActions.DROP):
-		drop_held_item()
+		if seat_index >= 0 and trip != null:
+			trip.request_driver_hold(true)
+		else:
+			drop_held_item()
+	elif event.is_action_released(InputActions.DROP) and trip != null and seat_index >= 0:
+		trip.request_driver_hold(false)
 
 
 func _physics_process(delta: float) -> void:
 	if not is_multiplayer_authority() or is_dead:
+		return
+	if seat_index >= 0 and trip != null:
+		velocity = Vector3.ZERO
+		global_position = trip.seat_position(seat_index)
+		if not _current_prompt.is_empty():
+			_current_prompt = ""
+			interact_prompt_changed.emit("")
 		return
 	_update_crouch()
 	_apply_movement(delta)
@@ -289,6 +316,8 @@ func _find_interactable() -> Interactable:
 
 
 func _try_interact() -> void:
+	if seat_index >= 0:
+		return
 	var target := _find_interactable()
 	if target != null:
 		target.interact(self)

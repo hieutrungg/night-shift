@@ -15,6 +15,7 @@ var size: Vector3 = Vector3.ZERO
 
 ## Set on every peer while a round is running.
 var accepting: bool = false
+var seat_markers: Array[Marker3D] = []
 
 var _truck: Node3D
 
@@ -22,14 +23,22 @@ var _truck: Node3D
 @onready var _interactable: Interactable = $Interactable
 @onready var _deposit_sound: AudioStreamPlayer3D = $DepositSound
 @onready var _horn_sound: AudioStreamPlayer3D = $HornSound
+@onready var _engine_sound: AudioStreamPlayer3D = $EngineSound
 
 
 func _ready() -> void:
 	_add_truck()
+	for index in GameConfig.MAX_PLAYERS:
+		var seat := Marker3D.new()
+		seat.name = "Seat%d" % index
+		seat.position = Vector3((float(index) - float(GameConfig.MAX_PLAYERS - 1) * 0.5) * GameConfig.TRUCK_SEAT_SPACING, GameConfig.TRUCK_SEAT_HEIGHT, 0.0)
+		add_child(seat)
+		seat_markers.append(seat)
 	_interactable.condition = _can_deposit
 	_interactable.interacted.connect(_on_interacted)
 	_deposit_sound.stream = Sfx.deposit()
 	_horn_sound.stream = Sfx.horn()
+	_engine_sound.stream = Sfx.truck_engine()
 
 
 ## Local feedback; the level calls these on every peer.
@@ -39,6 +48,14 @@ func play_deposit() -> void:
 
 func play_horn() -> void:
 	_horn_sound.play()
+
+
+func start_engine() -> void:
+	_engine_sound.play()
+
+
+func stop_engine() -> void:
+	_engine_sound.stop()
 
 
 ## Asks the host to load the local player's held item into the van.

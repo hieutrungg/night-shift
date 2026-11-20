@@ -121,6 +121,7 @@ Thêm:
 - Spawn người chơi và đồ vật bằng `MultiplayerSpawner`. Đồng bộ vị trí liên tục bằng `MultiplayerSynchronizer`, không tự gửi RPC mỗi frame.
 - Đồ vật: chỉ host chạy vật lý; client giữ đồ ở trạng thái `freeze` và chép `synced_transform`. Khi có người cầm, mỗi máy tự cho món đồ bám theo tay người đó (không đồng bộ vị trí lúc đang cầm).
 - Vòng chơi (`features/round/round_manager.gd`): host quyết định bắt đầu, tiền đã thu, kết thúc; client chỉ tự đếm giờ giữa các tin nhắn. Luật vòng (thời gian, tỉ lệ chỉ tiêu) nằm trong `GameConfig`.
+- Xe đến và rời đi: host quyết định phase, ghế, tài xế và việc rời bãi; client gửi yêu cầu lên/xuống hoặc bắt đầu/nhả giữ G. Host kiểm tra và phát sự kiện tin cậy, từng máy tự chạy đường xe cố định; không gửi vị trí xe mỗi frame. Chỉ bắt đầu đồng hồ và thời gian ngủ của quái khi mọi người đã xuống xe.
 - Chơi lại: dùng `GreyboxLevel.restart_round()` (dừng đồng bộ người chơi → xóa người chơi/đồ → mới tải lại map). Không gọi thẳng `Net.restart_match()`, vì sẽ sinh lỗi "Node not found" ở client.
 - Khoảng cách tối đa host chấp nhận yêu cầu mở cửa/nhặt đồ: `GameConfig.INTERACT_MAX_DISTANCE`. Tìm node người chơi theo peer id bằng `Player.find_by_peer()`.
 - Lớp vật lý (`GameConfig.LAYER_*`, tên trong `project.godot`): 1 `world`, 2 `doors`, 3 `items`. Người chơi, đồ vật và tia tương tác va chạm cả 3 lớp; ma-nơ-canh chỉ va chạm `world` (nó tự mở cửa khi đến gần và đi xuyên qua đồ). Mọi thứ mới phải chọn lớp rõ ràng.

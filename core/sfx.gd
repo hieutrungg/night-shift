@@ -24,6 +24,10 @@ const DEFAULT_PITCH_SPREAD: float = 1.05
 const MANNEQUIN_MUSIC_SECONDS: float = 8.0
 const MANNEQUIN_NOTE_SECONDS: float = 0.5
 const MANNEQUIN_NOTES: Array[float] = [220.0, 233.0, 165.0, 208.0, 220.0, 311.0, 233.0, 165.0]
+const TRUCK_ENGINE_SECONDS: float = 2.0
+const TRUCK_ENGINE_RUMBLE_HZ: float = 42.0
+const TRUCK_ENGINE_PULSE_HZ: float = 13.0
+const TRUCK_ENGINE_RATTLE_HZ: float = 126.0
 
 static var _cache: Dictionary[StringName, AudioStream] = {}
 
@@ -65,8 +69,17 @@ static func horn() -> AudioStream:
 	return _cached(&"horn", _make_horn)
 
 
+## Looping diesel-like rumble, created locally without a downloaded asset.
+static func truck_engine() -> AudioStream:
+	return _cached(&"truck_engine", _make_truck_engine)
+
+
 static func beep() -> AudioStream:
 	return _cached(&"beep", _make_beep)
+
+
+static func quota_reached() -> AudioStream:
+	return _cached(&"quota_reached", _make_quota_reached)
 
 
 static func death_sting() -> AudioStream:
@@ -129,6 +142,17 @@ static func _make_deposit() -> AudioStreamWAV:
 	return _to_wav(samples, false)
 
 
+static func _make_quota_reached() -> AudioStreamWAV:
+	var samples := PackedFloat32Array()
+	samples.resize(int(0.6 * MIX_RATE))
+	for i in samples.size():
+		var t := float(i) / MIX_RATE
+		var frequency := 660.0 if t < 0.2 else (880.0 if t < 0.4 else 1320.0)
+		var envelope := minf(t * 30.0, 1.0) * minf((0.6 - t) * 10.0, 1.0)
+		samples[i] = sin(TAU * frequency * t) * envelope * 0.3
+	return _to_wav(samples, false)
+
+
 static func _make_horn() -> AudioStreamWAV:
 	var samples := PackedFloat32Array()
 	samples.resize(int(1.3 * MIX_RATE))
@@ -138,6 +162,19 @@ static func _make_horn() -> AudioStreamWAV:
 		var envelope := minf(t * 20.0, 1.0) * minf((1.3 - t) * 8.0, 1.0)
 		samples[i] = tone * envelope * 0.3
 	return _to_wav(samples, false)
+
+
+static func _make_truck_engine() -> AudioStreamWAV:
+	var samples := PackedFloat32Array()
+	samples.resize(int(TRUCK_ENGINE_SECONDS * MIX_RATE))
+	for i in samples.size():
+		var t := float(i) / MIX_RATE
+		var rumble := sin(TAU * TRUCK_ENGINE_RUMBLE_HZ * t)
+		var harmonic := sin(TAU * TRUCK_ENGINE_RUMBLE_HZ * 2.0 * t)
+		var rattle := sin(TAU * TRUCK_ENGINE_RATTLE_HZ * t)
+		var pulse := 0.7 + 0.3 * sin(TAU * TRUCK_ENGINE_PULSE_HZ * t)
+		samples[i] = (rumble * 0.55 + harmonic * 0.22 + rattle * 0.12) * pulse * 0.55
+	return _to_wav(samples, true)
 
 
 static func _make_beep() -> AudioStreamWAV:

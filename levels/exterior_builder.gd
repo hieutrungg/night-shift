@@ -300,9 +300,15 @@ func _build_gate(centre: Vector3) -> void:
 	for side: float in [-1.0, 1.0]:
 		_box(centre + Vector3(half * side, (FENCE_HEIGHT + 0.3) * 0.5, 0.0),
 			Vector3(GATE_POST_SIZE, FENCE_HEIGHT + 0.3, GATE_POST_SIZE), _materials["metal"])
+	var original_parent := _parent
+	var gate := Node3D.new()
+	gate.name = "Gate"
+	_parent.add_child(gate)
+	_parent = gate
 	_fence_run(centre + Vector3(-half + 0.1, 0.0, 0.0), centre + Vector3(half - 0.1, 0.0, 0.0))
 	_visual_box(centre + Vector3(0.0, FENCE_HEIGHT * 0.5, 0.0),
 		Vector3(0.06, FENCE_HEIGHT - 0.1, 0.06), _materials["metal"])
+	_parent = original_parent
 
 
 ## Box with collision (so the navmesh and players treat it as solid).

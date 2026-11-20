@@ -17,6 +17,15 @@ var _shown_seconds: int = -1
 var _spectate_target: Player = null
 var _last_beep_second: int = -1
 var _player: Player = null
+var _trip_label: Label
+var _notice_label: Label
+var _warning_label: Label
+var _progress: ProgressBar
+var _fade: ColorRect
+var _notice_left: float = 0.0
+var _last_driver: int = 0
+var _quota_reached: bool = false
+var _pending_driver_notice: bool = false
 
 @onready var _prompt_label: Label = %PromptLabel
 @onready var _held_label: Label = %HeldLabel
@@ -55,9 +64,10 @@ func _ready() -> void:
 	_result_leave_button.pressed.connect(_on_leave_pressed)
 	_play_again_button.pressed.connect(_on_play_again_pressed)
 	_refresh_held()
+	_create_trip_ui()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	# Esc frees the mouse; that is when the pause buttons are reachable.
 	var menu_open := Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not _results_panel.visible
 	_pause_panel.visible = menu_open and not _settings_panel.visible
@@ -65,6 +75,7 @@ func _process(_delta: float) -> void:
 	if Net.is_solo and get_tree().paused != menu_open:
 		get_tree().paused = menu_open
 	_refresh_time()
+	_refresh_trip(delta)
 
 
 func bind_player(player: Player) -> void:
@@ -105,6 +116,15 @@ func _on_held_item_changed(item: Item) -> void:
 
 func _on_collected_changed(_collected: int, _quota: int) -> void:
 	_refresh_quota()
+	if _round.quota > 0 and _round.collected >= _round.quota and not _quota_reached:
+		_quota_reached = true
+		if _notice_left > 0.0:
+			_notice_label.text += "\n" + tr("HUD_QUOTA_REACHED")
+		else:
+			_notice_label.text = tr("HUD_QUOTA_REACHED")
+		_notice_left = GameConfig.TRIP_NOTICE_SEC
+		_beep_sound.stream = Sfx.quota_reached()
+		_beep_sound.play()
 
 
 func _on_round_ended(_success: bool, _collected: int, _quota: int) -> void:
@@ -137,6 +157,9 @@ func _show_results() -> void:
 	_result_title.text = tr("ROUND_SUCCESS" if _round.success else "ROUND_FAILED")
 	_result_reason.text = tr(_round.get_end_reason_key())
 	_result_detail.text = tr("ROUND_COLLECTED").format({"collected": _round.collected, "quota": _round.quota})
+	_result_detail.text += "\n" + tr("ROUND_SURVIVORS").format({"count": _round.survivors})
+	if not _round.left_names.is_empty():
+		_result_detail.text += "\n" + tr("ROUND_LEFT_BEHIND").format({"names": ", ".join(_round.left_names)})
 	var is_host := multiplayer.is_server()
 	_play_again_button.visible = is_host
 	_result_waiting_label.visible = not is_host
@@ -191,7 +214,91 @@ func _maybe_beep(seconds: int) -> void:
 		return
 	if seconds in WARNING_BEEP_SECONDS or seconds <= FINAL_BEEP_SEC:
 		_last_beep_second = seconds
+		_beep_sound.stream = Sfx.beep()
 		_beep_sound.play()
+
+
+func _create_trip_ui() -> void:
+	var column := VBoxContainer.new()
+	column.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	column.offset_left = -300.0
+	column.offset_right = 300.0
+	column.offset_top = 80.0
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	$Root.add_child(column)
+	_notice_label = Label.new()
+	_notice_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_notice_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_notice_label.add_theme_font_size_override("font_size", 20)
+	column.add_child(_notice_label)
+	_trip_label = Label.new()
+	_trip_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_trip_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_trip_label.add_theme_font_size_override("font_size", 20)
+	column.add_child(_trip_label)
+	_warning_label = Label.new()
+	_warning_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_warning_label.add_theme_font_size_override("font_size", 32)
+	_warning_label.add_theme_color_override("font_color", Color(1.0, 0.45, 0.25))
+	_warning_label.text = "HUD_DEPARTURE_WARNING"
+	column.add_child(_warning_label)
+	_progress = ProgressBar.new()
+	_progress.custom_minimum_size.y = 16.0
+	_progress.max_value = GameConfig.DRIVER_HOLD_SEC
+	_progress.show_percentage = false
+	_progress.visible = false
+	column.add_child(_progress)
+	_fade = ColorRect.new()
+	_fade.color = Color.TRANSPARENT
+	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	$Root.add_child(_fade)
+	$Root.move_child(_fade, 0)
+
+
+func _refresh_trip(delta: float) -> void:
+	if not is_instance_valid(_player) or not _player.is_inside_tree() or _player.trip == null or _round == null:
+		return
+	var trip := _player.trip
+	if not is_instance_valid(trip.van) or not trip.van.is_inside_tree():
+		return
+	var local_id := _player.get_peer_id()
+	if trip.driver_id != _last_driver:
+		_last_driver = trip.driver_id
+		if trip.driver_id == local_id:
+			_pending_driver_notice = true
+		else:
+			_pending_driver_notice = false
+	_notice_left = maxf(_notice_left - delta, 0.0)
+	if _pending_driver_notice:
+		_pending_driver_notice = false
+		if _notice_left > 0.0:
+			_notice_label.text += "\n" + tr("HUD_YOU_ARE_DRIVER")
+		else:
+			_notice_label.text = tr("HUD_YOU_ARE_DRIVER")
+		_notice_left = GameConfig.TRIP_NOTICE_SEC
+	_notice_label.visible = _notice_left > 0.0
+	var lines: Array[String] = []
+	var seated := _player.seat_index >= 0
+	var nearby := trip.van.distance_to(_player.global_position) <= GameConfig.INTERACT_MAX_DISTANCE
+	if seated and (_round.is_playing() or (_round.phase == RoundManager.Phase.ARRIVING and trip.arrival_elapsed >= GameConfig.ARRIVAL_SEC)):
+		lines.append(tr("HUD_DISEMBARK"))
+		if trip.driver_id == local_id:
+			lines.append(tr("HUD_DRIVER_HINT"))
+	elif nearby and _round.is_playing():
+		lines.append(tr("HUD_BOARD"))
+	if (nearby or seated) and trip.driver_id != 0 and trip.driver_id != local_id:
+		lines.append(tr("HUD_DRIVER_NAME").format({"name": Net.players.get(trip.driver_id, "")}))
+	if seated and _round.is_playing() and _round.collected < _round.quota:
+		lines.append(tr("HUD_QUOTA_MISSING").format({"missing": _round.quota - _round.collected}))
+	if trip.countdown >= 0.0:
+		lines.append(tr("HUD_DEPARTURE_COUNTDOWN").format({"seconds": ceili(trip.countdown)}))
+	_warning_label.visible = trip.hold_elapsed >= 0.0 and _round.is_playing()
+	_progress.visible = _warning_label.visible
+	_progress.value = maxf(trip.hold_elapsed, 0.0)
+	_trip_label.text = "\n".join(lines)
+	if _round.phase == RoundManager.Phase.DEPARTING:
+		_fade.color = Color(0.0, 0.0, 0.0, minf(_fade.color.a + delta / GameConfig.DEPARTURE_SEC, 1.0))
 
 
 # While a solo game is paused the player node gets no input, so the HUD

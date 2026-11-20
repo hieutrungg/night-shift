@@ -50,6 +50,15 @@ func _run() -> void:
 	_check(player != null, "player spawned")
 	if player == null:
 		return
+	var trip := level.get_trip()
+	trip.motion_tween.kill()
+	trip.van.position = trip.parked_position
+	trip.van.rotation.y = 0.0
+	trip._close_gate(level.get_node(^"Navigation/Geometry/Gate") as Node3D)
+	trip.arrival_elapsed = GameConfig.ARRIVAL_SEC
+	trip._disembark(player.get_peer_id())
+	trip._check_arrival_complete()
+	await _physics_frames(30)
 	# Keep the mannequin asleep until its own test.
 	var monster := level.get_monster()
 	if monster != null:

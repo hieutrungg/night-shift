@@ -35,5 +35,13 @@ foreach ($p in $procs) {
 Get-ChildItem $LogDir -Filter *.log | ForEach-Object {
     Get-Content $_.FullName | Select-String -Pattern "PASS|FAIL|NET SMOKE|SCRIPT ERROR|ERROR:"
 }
+Get-ChildItem $LogDir -Filter *.log.err | ForEach-Object {
+    if ($_.Length -gt 0) {
+        $failed++
+        Write-Host "STDERR NOT EMPTY: $($_.Name)"
+        $errorText = [System.IO.File]::ReadAllText($_.FullName, [System.Text.Encoding]::UTF8)
+        $errorText.Substring(0, [Math]::Min(4096, $errorText.Length))
+    }
+}
 if ($failed -eq 0) { Write-Host "ALL ROLES OK" } else { Write-Host "$failed ROLE(S) FAILED" }
 exit $failed

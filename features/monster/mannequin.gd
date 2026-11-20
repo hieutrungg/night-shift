@@ -151,6 +151,8 @@ func _nearest_living_player() -> Player:
 	var nearest: Player = null
 	var best := INF
 	for player in _living_players():
+		if player.seat_index >= 0:
+			continue
 		var distance := global_position.distance_squared_to(player.global_position)
 		if distance < best:
 			best = distance
@@ -223,6 +225,8 @@ func _catch_players() -> void:
 	var space := get_world_3d().direct_space_state
 	var from := global_position + Vector3.UP * CATCH_HEIGHT
 	for player in players:
+		if player.seat_index >= 0:
+			continue
 		var offset := player.global_position - global_position
 		if absf(offset.y) > MAX_KILL_HEIGHT_DIFF:
 			continue

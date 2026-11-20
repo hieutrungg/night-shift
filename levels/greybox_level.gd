@@ -58,6 +58,7 @@ var _rows: PackedStringArray = []
 var _player: Player = null
 var _hud: Hud = null
 var _round: RoundManager
+var _trip: TripController
 var _van: Van = null
 var _players_root: Node3D
 var _player_spawner: MultiplayerSpawner
@@ -167,6 +168,18 @@ func get_round() -> RoundManager:
 	return _round
 
 
+func get_trip() -> TripController:
+	return _trip
+
+
+func get_layout_width() -> int:
+	return _rows[0].length()
+
+
+func get_layout_depth() -> int:
+	return _rows.size()
+
+
 ## Null when the layout has no van cells.
 func get_van() -> Van:
 	return _van
@@ -222,7 +235,7 @@ func kill_player(peer_id: int) -> void:
 	if not multiplayer.is_server():
 		return
 	var player := Player.find_by_peer(get_tree(), peer_id)
-	if player == null or player.is_dead:
+	if player == null or player.is_dead or player.seat_index >= 0:
 		return
 	if player.held_item != null:
 		player.held_item.force_release()
@@ -272,6 +285,8 @@ func _set_player_dead(peer_id: int) -> void:
 
 
 func _end_round_if_all_dead() -> void:
+	if not _round.is_playing():
+		return
 	for player in get_players():
 		if not player.is_dead:
 			return
@@ -545,6 +560,10 @@ func _setup_round() -> void:
 	_round.round_started.connect(_on_round_started)
 	_round.round_ended.connect(_on_round_ended)
 	_round.collected_changed.connect(_on_collected_changed)
+	_trip = TripController.new()
+	_trip.name = "Trip"
+	add_child(_trip)
+	_trip.setup(self, _van, _round)
 	_flicker.round_manager = _round
 	if _van != null and multiplayer.is_server():
 		_van.item_deposited.connect(_on_item_deposited)
@@ -584,6 +603,7 @@ func _on_all_players_loaded() -> void:
 	_spawn_all_players()
 	_spawn_monster()
 	_round.start(_quota_for(total_value))
+	_trip.begin_arrival()
 
 
 func _quota_for(total_value: int) -> int:
@@ -666,8 +686,12 @@ func _on_item_deposited(item: Item, _peer_id: int) -> void:
 		return
 	_round.add_collected(item.data.value)
 	item.consume()
-	if _count_items_left() == 0:
-		_round.finish(RoundManager.EndReason.ALL_COLLECTED)
+
+
+func deposit_for_boarding(player: Player) -> void:
+	if not multiplayer.is_server() or player.held_item == null:
+		return
+	_on_item_deposited(player.held_item, player.get_peer_id())
 
 
 func _count_items_left() -> int:
@@ -711,6 +735,7 @@ func _spawn_all_players() -> void:
 
 
 func _on_player_left(peer_id: int) -> void:
+	_trip.remove_player(peer_id)
 	for item in _items:
 		if is_instance_valid(item) and item.holder_id == peer_id:
 			item.force_release()
@@ -723,7 +748,10 @@ func _on_player_left(peer_id: int) -> void:
 
 func _on_player_entered(node: Node) -> void:
 	var player := node as Player
-	if player == null or player.get_peer_id() != multiplayer.get_unique_id():
+	if player == null:
+		return
+	player.trip = _trip
+	if player.get_peer_id() != multiplayer.get_unique_id():
 		return
 	_player = player
 	if _hud == null:

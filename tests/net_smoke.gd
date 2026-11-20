@@ -85,6 +85,12 @@ func _run_host() -> void:
 	_check(Net.start_game(), "match started")
 	var spawned := await _wait_until(func() -> bool: return _level_players().size() == GameConfig.MAX_PLAYERS, 30.0)
 	_check(spawned, "host sees %d players (has %d)" % [GameConfig.MAX_PLAYERS, _level_players().size()])
+	var arrival := await _wait_until(_arrival_synced, 10.0)
+	_check(arrival, "host sees all players seated during arrival")
+	var engine_started := await _wait_until(_truck_engine_playing, 5.0)
+	_check(engine_started, "host hears engine during arrival")
+	var ready := await _wait_until(func() -> bool: return (get_tree().current_scene as GreyboxLevel).get_round().is_playing(), 25.0)
+	_check(ready, "host sees arrival complete")
 	var monster := (get_tree().current_scene as GreyboxLevel).get_monster()
 	_check(monster != null, "mannequin spawned on the host")
 	if monster != null:
@@ -142,15 +148,20 @@ func _run_host_round(level: GreyboxLevel, item: Item) -> void:
 		func() -> bool: return level.get_item(CONTEST_ITEM) == null and round_manager.collected == value, 20.0)
 	_check(deposited, "winner loaded the item into the van (+%d)" % value)
 	_check(level.get_items().size() == item_count - 1, "deposited item removed on the host")
-	var victim_id := _peer_id_of(VICTIM)
-	level.kill_player(victim_id)
-	var victim := Player.find_by_peer(get_tree(), victim_id)
-	_check(victim != null and victim.is_dead, "host killed %s" % VICTIM)
-	_check(round_manager.is_playing(), "round goes on while others live")
-	await _seconds(POSITION_SETTLE_SEC)
-	round_manager.finish(RoundManager.EndReason.TIME_UP)
-	_check(round_manager.phase == RoundManager.Phase.ENDED and not round_manager.success,
-		"host ended the round below quota (%d/%d)" % [round_manager.collected, round_manager.quota])
+	round_manager.add_collected(round_manager.quota - round_manager.collected)
+	var trip := level.get_trip()
+	var boarded := await _wait_until(func() -> bool: return trip.seats.has(_peer_id_of("C1")) and trip.seats.has(_peer_id_of("C2")), 20.0)
+	_check(boarded and trip.driver_id == _peer_id_of("C1"), "host sees same boarded players and driver")
+	if not boarded:
+		for peer_id: int in [_peer_id_of("C1"), _peer_id_of("C2")]:
+			var candidate := Player.find_by_peer(get_tree(), peer_id)
+			if candidate != null:
+				print("  DEBUG boarding ", peer_id, " position=", candidate.global_position, " van=", trip.van.global_position, " distance=", trip.van.distance_to(candidate.global_position), " seats=", trip.seats, " driver=", trip.driver_id)
+	var engine_started := await _wait_until(_truck_engine_playing, 10.0)
+	_check(engine_started, "host hears engine during departure")
+	var ended := await _wait_until(func() -> bool: return round_manager.phase == RoundManager.Phase.ENDED, 20.0)
+	var victim := Player.find_by_peer(get_tree(), _peer_id_of(VICTIM))
+	_check(ended and round_manager.success and round_manager.end_reason == RoundManager.EndReason.DRIVER_LEFT and round_manager.survivors == 2 and round_manager.left_names.has("C3") and round_manager.left_names.has("Host") and victim != null and victim.is_dead, "driver leaves client behind with matching result")
 	await _seconds(ROUND_RESULT_WAIT_SEC)
 	var old_level_id := level.get_instance_id()
 	level.restart_round()
@@ -170,6 +181,12 @@ func _run_client() -> void:
 	_check(me != null and me.is_multiplayer_authority(), "client controls its own player")
 	if me == null:
 		return
+	var arrival := await _wait_until(_arrival_synced, 10.0)
+	_check(arrival, "client sees all players seated during arrival")
+	var engine_started := await _wait_until(_truck_engine_playing, 5.0)
+	_check(engine_started, "client hears engine during arrival")
+	var ready := await _wait_until(func() -> bool: return level.get_round().is_playing(), 25.0)
+	_check(ready, "client sees arrival complete")
 	for other in _level_players():
 		if other != me and other.is_multiplayer_authority():
 			_check(false, "client must not control player %s" % other.name)
@@ -232,12 +249,37 @@ func _run_client_round(level: GreyboxLevel, me: Player, item: Item, i_won: bool)
 	var deposited := await _wait_until(
 		func() -> bool: return level.get_item(CONTEST_ITEM) == null and round_manager.collected == value, 15.0)
 	_check(deposited and me.held_item == null, "deposit seen on this peer (+%d)" % value)
+	await _run_client_departure(level, me)
 	await _check_victim(level)
-	var ended := await _wait_until(func() -> bool: return round_manager.phase == RoundManager.Phase.ENDED, 15.0)
-	_check(ended and round_manager.collected == value and not round_manager.success, "same round result as the host")
+	var engine_started := await _wait_until(_truck_engine_playing, 10.0)
+	_check(engine_started, "client hears engine during departure")
+	var ended := await _wait_until(func() -> bool: return round_manager.phase == RoundManager.Phase.ENDED, 20.0)
+	_check(ended and round_manager.success and round_manager.end_reason == RoundManager.EndReason.DRIVER_LEFT and round_manager.survivors == 2 and round_manager.left_names.has("C3") and round_manager.left_names.has("Host"), "same driver departure result as the host")
 	var old_level_id := level.get_instance_id()
 	var restarted := await _wait_until(func() -> bool: return _is_new_round(old_level_id), 30.0)
 	_check(restarted, "new round loaded after play again")
+
+
+func _run_client_departure(level: GreyboxLevel, me: Player) -> void:
+	var trip := level.get_trip()
+	var quota_ready := await _wait_until(func() -> bool: return level.get_round().collected >= level.get_round().quota, 15.0)
+	_check(quota_ready, "quota reached on client")
+	if _player_name == "C2":
+		await _wait_until(func() -> bool: return trip.driver_id == _peer_id_of("C1"), 10.0)
+	if _player_name in CONTENDERS:
+		var deadline := Time.get_ticks_msec() + 10000
+		while not trip.seats.has(me.get_peer_id()) and Time.get_ticks_msec() < deadline:
+			var offset := Vector3.RIGHT if _player_name == "C2" else Vector3.ZERO
+			_teleport(me, trip.van.approach_point() + offset)
+			await _seconds(POSITION_SETTLE_SEC)
+			if not trip.seats.has(me.get_peer_id()):
+				trip.request_board_toggle()
+			await _seconds(POSITION_SETTLE_SEC)
+	var boarded := await _wait_until(func() -> bool: return trip.seats.has(_peer_id_of("C1")) and trip.seats.has(_peer_id_of("C2")), 15.0)
+	_check(boarded and trip.driver_id == _peer_id_of("C1") and level.get_round().is_playing(), "client sees same phase, seats and driver")
+	if _player_name == "C1":
+		await _seconds(POSITION_SETTLE_SEC)
+		trip.request_driver_hold(true)
 
 
 func _check_victim(level: GreyboxLevel) -> void:
@@ -295,9 +337,29 @@ func _is_new_round(old_level_id: int) -> bool:
 	if level == null or level.get_instance_id() == old_level_id or not level.is_node_ready():
 		return false
 	var round_manager := level.get_round()
-	return (round_manager.is_playing() and round_manager.collected == 0
+	return (round_manager.phase == RoundManager.Phase.ARRIVING and round_manager.collected == 0
 		and level.get_players().size() == GameConfig.MAX_PLAYERS
 		and level.get_items().size() == ITEM_COUNT)
+
+
+func _arrival_synced() -> bool:
+	var level := get_tree().current_scene as GreyboxLevel
+	if level == null or level.get_round().phase != RoundManager.Phase.ARRIVING:
+		return false
+	for peer_id: int in Net.players.keys():
+		if not level.get_trip().seats.has(peer_id):
+			return false
+		var player := Player.find_by_peer(get_tree(), peer_id)
+		if player == null or not (player.get_node(^"Footsteps") as Footsteps).boarded:
+			return false
+	return level.get_trip().driver_id == 0
+
+
+func _truck_engine_playing() -> bool:
+	var level := get_tree().current_scene as GreyboxLevel
+	if level == null or not is_instance_valid(level.get_van()):
+		return false
+	return (level.get_van().get_node(^"EngineSound") as AudioStreamPlayer3D).playing
 
 
 func _is_contender(peer_id: int) -> bool:

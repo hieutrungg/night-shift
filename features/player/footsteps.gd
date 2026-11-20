@@ -23,6 +23,8 @@ const SPEED_SMOOTHING: float = 0.2
 
 ## Set when the owner dies.
 var muted: bool = false
+## Vehicle motion is not movement on foot, including for remote players.
+var boarded: bool = false
 ## Set for the local player's own footsteps.
 var is_own: bool = false
 ## Counted for tests.
@@ -41,7 +43,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	var moved := global_position - _last_position
 	_last_position = global_position
-	if muted or delta <= 0.0:
+	if muted or boarded or delta <= 0.0:
 		return
 	var horizontal := Vector2(moved.x, moved.z).length()
 	if horizontal > TELEPORT_DISTANCE:
@@ -54,6 +56,18 @@ func _physics_process(delta: float) -> void:
 	if _travelled >= stride_length:
 		_travelled = 0.0
 		_step()
+
+
+func set_boarded(value: bool) -> void:
+	if boarded == value:
+		return
+	boarded = value
+	_travelled = 0.0
+	_speed = 0.0
+	if is_inside_tree():
+		_last_position = global_position
+	if boarded:
+		stop()
 
 
 func _step() -> void:

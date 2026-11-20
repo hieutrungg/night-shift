@@ -15,6 +15,17 @@ const INTERACT_MAX_DISTANCE: float = 3.5
 
 ## Round rules.
 const ROUND_DURATION_SEC: float = 300.0
+const ARRIVAL_SEC: float = 8.0
+const AUTO_DISEMBARK_SEC: float = 5.0
+const DEPARTURE_COUNTDOWN_SEC: float = 5.0
+const DEPARTURE_SEC: float = 8.0
+const DRIVER_HOLD_SEC: float = 3.0
+const TRUCK_SEAT_HEIGHT: float = 2.3
+const TRUCK_SEAT_SPACING: float = 0.65
+const TRUCK_OUTSIDE_DISTANCE: float = 8.0
+const TRUCK_WAYPOINT_INSET: float = 4.0
+const GATE_MOVE_SEC: float = 1.0
+const TRIP_NOTICE_SEC: float = 5.0
 ## Share of the spawned loot value the team must bring back to the van.
 const QUOTA_RATIO: float = 0.5
 ## Quotas are rounded to this step so they read nicely.
