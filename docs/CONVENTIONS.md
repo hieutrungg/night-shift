@@ -126,6 +126,9 @@ Thêm:
 - Khoảng cách tối đa host chấp nhận yêu cầu mở cửa/nhặt đồ: `GameConfig.INTERACT_MAX_DISTANCE`. Tìm node người chơi theo peer id bằng `Player.find_by_peer()`.
 - Lớp vật lý (`GameConfig.LAYER_*`, tên trong `project.godot`): 1 `world`, 2 `doors`, 3 `items`. Người chơi, đồ vật và tia tương tác va chạm cả 3 lớp; ma-nơ-canh chỉ va chạm `world` (nó tự mở cửa khi đến gần và đi xuyên qua đồ). Mọi thứ mới phải chọn lớp rõ ràng.
 - Cái chết do host quyết định: `GreyboxLevel.kill_player(peer_id)`. Người chết chuyển sang chế độ xem (`Spectator`); cả đội chết thì vòng kết thúc.
+- Ma-nơ-canh: số con (`GameConfig.mannequin_count()`) và giờ thức (`GameConfig.mannequin_wake_delay()`) chỉ khai báo trong `GameConfig`. Host chọn vị trí và con ở phòng trưng bày được tráo với con giả nào, rồi spawn bằng `MultiplayerSpawner` với `spawn_function` (dữ liệu spawn là `Dictionary`), để mọi máy dựng y hệt và tự dời con giả, không cần RPC riêng.
+- Phiên bản: host từ chối client khác `GameConfig.GAME_VERSION` (`ERR_VERSION_MISMATCH`). **Tăng `GAME_VERSION` mỗi lần gửi bản build mới cho bạn bè.**
+- Tin nhắn phòng chờ (`_sync_roster`, `_begin_game`) chỉ gửi tới người đã đăng ký trong `Net.players`, không dùng `.rpc()` cho mọi peer: người bị từ chối vẫn còn kết nối đến khi host ngắt. Người bị từ chối chờ host ngắt (host ngắt qua `SceneMultiplayer.disconnect_peer`), không tự đóng kết nối.
 - Hiệu ứng không khí phải giống nhau trên mọi máy nhưng không tốn băng thông: tính từ dữ liệu đã đồng bộ (thời gian vòng, vị trí quái), không dùng `randf()`. Ví dụ: `levels/light_flicker.gd`.
 - Dữ liệu tần suất cao (vị trí) dùng `unreliable` / `unreliable_ordered`. Sự kiện (nhặt đồ, chết, kết thúc vòng) dùng `reliable`.
 - Không gửi `Object`/`Node` qua RPC; gửi id, `NodePath` hoặc giá trị đơn giản.

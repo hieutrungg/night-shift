@@ -2,9 +2,12 @@ extends Control
 ## Main menu: host or join by IP, then the lobby until the host starts.
 
 const ADDRESS_SEPARATOR: String = "  ·  "
+const VERSION_LABEL_ALPHA: float = 0.5
+const VERSION_LABEL_MARGIN: int = 12
 
 var _status_key: String = ""
 var _status_args: Dictionary = {}
+var _version_label: Label
 
 @onready var _menu_panel: Control = %MenuPanel
 @onready var _lobby_panel: Control = %LobbyPanel
@@ -40,6 +43,7 @@ func _ready() -> void:
 	Net.connected_to_lobby.connect(_show_lobby)
 	Net.join_failed.connect(_on_join_failed)
 	Settings.locale_changed.connect(_on_locale_changed)
+	_add_version_label()
 	_refresh_friends_label()
 	_show_menu()
 	if not Net.last_end_reason_key.is_empty():
@@ -92,6 +96,7 @@ func _on_quit_pressed() -> void:
 
 
 func _on_locale_changed(_locale: String) -> void:
+	_version_label.text = tr("UI_VERSION").format({"version": GameConfig.GAME_VERSION})
 	_refresh_friends_label()
 	_refresh_lobby()
 	if not _status_key.is_empty():
@@ -162,7 +167,7 @@ func _local_ipv4_addresses() -> PackedStringArray:
 func _set_status(key: String, args: Dictionary = {}) -> void:
 	_status_key = key
 	_status_args = args
-	var values := {"max": GameConfig.MAX_PLAYERS, "min": GameConfig.MIN_PLAYERS}
+	var values := {"max": GameConfig.MAX_PLAYERS, "min": GameConfig.MIN_PLAYERS, "version": GameConfig.GAME_VERSION}
 	values.merge(args, true)
 	_status_label.text = tr(key).format(values)
 
@@ -176,3 +181,15 @@ func _set_menu_buttons_enabled(enabled: bool) -> void:
 	_solo_button.disabled = not enabled
 	_host_button.disabled = not enabled
 	_join_button.disabled = not enabled
+
+
+## Shown in the corner so friends can check they all run the same build.
+func _add_version_label() -> void:
+	_version_label = Label.new()
+	_version_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_version_label.text = tr("UI_VERSION").format({"version": GameConfig.GAME_VERSION})
+	_version_label.modulate = Color(1.0, 1.0, 1.0, VERSION_LABEL_ALPHA)
+	_version_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, VERSION_LABEL_MARGIN)
+	_version_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_version_label.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	add_child(_version_label)

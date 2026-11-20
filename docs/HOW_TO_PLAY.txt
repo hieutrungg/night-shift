@@ -5,7 +5,7 @@ ENGLISH
 -------
 Players: 2 to 4 (the host counts). Voice chat: use Discord.
 Alone? Click "Play solo": no Radmin, no network. Esc pauses the game.
-Solo is a bit easier: lower quota, slower mannequin.
+Solo is a bit easier: lower quota, one slower mannequin.
 
 1. Everyone: install Radmin VPN and join the same Radmin network.
 2. Unzip, run NightShift.exe. If Windows SmartScreen warns, click
@@ -29,7 +29,11 @@ BULKY loot (old TV, mini fridge) waits in the farthest room. It is worth
 a lot, but you can only walk very slowly while carrying it: no running,
 no jumping. Have a friend watch your back.
 
-THE MANNEQUIN freezes only when a living player sees its body lit by a
+THE MANNEQUINS: one with 1 player, two with 2-3 players, three with 4.
+They start in the showroom, the staff lockers and the meeting room, and wake
+one after another (20 s, 50 s, 80 s after everyone gets off). In the showroom
+the real one hides among dummies, and it is a different one every round.
+A mannequin freezes only when a living player sees its body lit by a
 flashlight or ceiling light. Looking in darkness will not stop it.
 Stay more than 1.2 m away: it can kill even while frozen, but cannot reach
 through walls or closed doors. Chase music starts when it moves,
@@ -40,14 +44,22 @@ Controls: WASD move, Shift sprint, Ctrl crouch (quiet), Space jump,
 F flashlight, E use / pick up, G drop / driver hold, H board / exit, Esc menu.
 Language, mouse sensitivity and volume: Settings.
 
-Problems? Tell the host what happened and when. Everyone must run the
-same build.
+Can't connect? Check, in order:
+- Radmin VPN is on and everyone shows online (green) in the same network.
+- You typed the host's 26.x.x.x address (from Radmin or the lobby), not
+  192.168.x.x. Port: 7777 (UDP).
+- The host allowed NightShift.exe in Windows Firewall. If the prompt was
+  dismissed: Windows Security > Firewall > Allow an app, tick NightShift.
+- Everyone runs the same build: the version is in the menu's bottom-right
+  corner. A different version is refused with a message.
+- The room holds 4 players, and nobody can join once a round has started.
+Problems in game? Tell the host what happened and when.
 
 TIẾNG VIỆT
 ----------
 Số người: 2 đến 4 (tính cả chủ phòng). Nói chuyện qua Discord.
 Chơi một mình? Bấm "Chơi một mình": không cần Radmin, không cần mạng.
-Esc tạm dừng game. Chế độ này dễ hơn: chỉ tiêu thấp hơn, ma-nơ-canh chậm hơn.
+Esc tạm dừng game. Chế độ này dễ hơn: chỉ tiêu thấp hơn, một ma-nơ-canh chậm hơn.
 
 1. Mọi người: cài Radmin VPN và vào cùng một mạng Radmin.
 2. Giải nén, chạy NightShift.exe. Nếu Windows SmartScreen cảnh báo,
@@ -68,7 +80,11 @@ xe chạy, bỏ lại người còn ở ngoài. Nếu tất cả người sống
 ĐỒ CỒNG KỀNH (TV cũ, tủ lạnh mini) nằm ở phòng xa nhất. Rất giá trị, nhưng
 khi khiêng chỉ đi được rất chậm: không chạy, không nhảy. Nhờ bạn canh lưng.
 
-MA-NƠ-CANH chỉ đứng yên khi người còn sống nhìn thấy phần cơ thể được đèn
+MA-NƠ-CANH: 1 con khi chơi 1 người, 2 con khi 2-3 người, 3 con khi 4 người.
+Chúng nằm ở phòng trưng bày, phòng tủ đồ nhân viên và phòng họp, thức dậy lần
+lượt (20 s, 50 s, 80 s sau khi mọi người xuống xe). Ở phòng trưng bày, con thật
+lẫn giữa các ma-nơ-canh giả, và mỗi vòng là một con khác.
+Ma-nơ-canh chỉ đứng yên khi người còn sống nhìn thấy phần cơ thể được đèn
 pin hoặc đèn trần chiếu sáng. Nhìn nó trong bóng tối không ngăn được nó.
 Giữ khoảng cách hơn 1,2 m: nó vẫn giết được khi đứng yên, nhưng không với
 xuyên tường hoặc cửa đóng. Nhạc truy đuổi bắt đầu khi nó di chuyển,
@@ -79,5 +95,13 @@ Phím: WASD đi, Shift chạy, Ctrl ngồi (đi êm), Space nhảy, F đèn pin,
 E dùng / nhặt, G thả / tài xế giữ để chạy, H lên / xuống xe, Esc mở menu.
 Ngôn ngữ, độ nhạy chuột, âm lượng: trong Cài đặt.
 
-Gặp lỗi? Báo chủ phòng chuyện gì xảy ra và lúc nào. Mọi người phải chạy
-cùng một bản build.
+Không vào được phòng? Kiểm tra lần lượt:
+- Radmin VPN đang bật, mọi người hiện online (xanh) trong cùng một mạng.
+- Nhập đúng địa chỉ 26.x.x.x của chủ phòng (xem trong Radmin hoặc phòng chờ),
+  không phải 192.168.x.x. Cổng: 7777 (UDP).
+- Chủ phòng đã cho phép NightShift.exe trong Windows Firewall. Lỡ tắt hộp hỏi:
+  Windows Security > Firewall > Allow an app, tích NightShift.
+- Mọi người chạy cùng một bản: số phiên bản ở góc dưới phải menu. Khác phiên
+  bản sẽ bị từ chối kèm thông báo.
+- Phòng tối đa 4 người, và vòng đã bắt đầu thì không vào thêm được.
+Gặp lỗi trong game? Báo chủ phòng chuyện gì xảy ra và lúc nào.

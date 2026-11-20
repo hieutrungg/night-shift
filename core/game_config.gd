@@ -9,6 +9,10 @@ const MAX_PLAYERS: int = 4
 
 const DEFAULT_PORT: int = 7777
 
+## Players must run the same build: the host refuses a different version.
+## Bump this every time a new build is shared with friends.
+const GAME_VERSION: String = "0.5.0"
+
 ## How far (m, from the player's feet) the host accepts a door or item request.
 ## Longer than the interact ray to absorb network lag.
 const INTERACT_MAX_DISTANCE: float = 3.5
@@ -30,8 +34,13 @@ const QUOTA_RATIO: float = 0.5
 ## Quotas are rounded to this step so they read nicely.
 const QUOTA_STEP: int = 10
 
-## The monster stays still this long after a round starts, so players can get inside.
+## The first mannequin stays still this long after a round starts, so players can get inside.
 const MONSTER_WAKE_DELAY_SEC: float = 20.0
+## Mannequins per match, indexed by player count. One mannequin is easy for a
+## group because a single watcher freezes it, so bigger groups face more.
+const MANNEQUINS_BY_PLAYERS: Array[int] = [1, 1, 2, 2, 3]
+## Wake time of each mannequin (in spawn order), so pressure builds through the round.
+const MANNEQUIN_WAKE_DELAYS_SEC: Array[float] = [20.0, 50.0, 80.0]
 
 ## Solo mode tuning: one person must both watch the mannequin and carry loot.
 const SOLO_QUOTA_RATIO: float = 0.35
@@ -46,3 +55,14 @@ const SUPPORTED_LOCALES: PackedStringArray = ["en", "vi"]
 const LAYER_WORLD: int = 1
 const LAYER_DOORS: int = 2
 const LAYER_ITEMS: int = 4
+
+
+static func mannequin_count(players: int) -> int:
+	return MANNEQUINS_BY_PLAYERS[clampi(players, 0, MANNEQUINS_BY_PLAYERS.size() - 1)]
+
+
+## Wake delay for the mannequin spawned at `index` (solo uses its own, longer delay).
+static func mannequin_wake_delay(index: int, solo: bool) -> float:
+	if solo:
+		return SOLO_MONSTER_WAKE_DELAY_SEC
+	return MANNEQUIN_WAKE_DELAYS_SEC[clampi(index, 0, MANNEQUIN_WAKE_DELAYS_SEC.size() - 1)]

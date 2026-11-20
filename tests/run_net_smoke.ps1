@@ -1,5 +1,6 @@
 # Runs the multi-process network smoke test on this machine:
-# 1 host + 3 clients (full lobby of 4) + 1 extra client that must be refused.
+# 1 host + 3 clients (full lobby of 4) + 1 extra client that must be refused
+# (room full) + 1 client with another game version that must be refused.
 # Usage (from the project folder):  powershell -ExecutionPolicy Bypass -File tests/run_net_smoke.ps1
 param(
     [string]$Godot = "D:\GoDot\Godot_v4.7-stable_win64.exe\Godot_v4.7-stable_win64_console.exe",
@@ -13,13 +14,20 @@ Get-ChildItem $LogDir -Filter *.log -ErrorAction SilentlyContinue | Remove-Item
 function Start-Role([string]$Role, [string]$Name) {
     $log = Join-Path $LogDir "$Role-$Name.log"
     $argList = @("--headless", "--path", "`"$project`"", "res://tests/net_smoke.tscn", "--", "--role=$Role", "--name=$Name")
-    Start-Process -FilePath $Godot -ArgumentList $argList -NoNewWindow -PassThru `
+    $proc = Start-Process -FilePath $Godot -ArgumentList $argList -NoNewWindow -PassThru `
         -RedirectStandardOutput $log -RedirectStandardError "$log.err"
+    # Without an open handle, ExitCode reads as empty once a quick role (a
+    # refused join) has exited, and that would count as a failure.
+    $null = $proc.Handle
+    $proc | Add-Member -NotePropertyName Role -NotePropertyValue "$Role-$Name"
+    return $proc
 }
 
 $procs = @()
 $procs += Start-Role "host" "H"
 Start-Sleep -Seconds 2
+# Before the lobby fills, so it is refused for its version, not for a full room.
+$procs += Start-Role "outdated" "O"
 foreach ($n in 1..3) { $procs += Start-Role "client" "C$n" }
 Start-Sleep -Seconds 4
 $procs += Start-Role "extra" "X"
@@ -29,8 +37,8 @@ $failed = 0
 foreach ($p in $procs) {
     # The console wrapper starts the real Godot as a child: end the whole tree,
     # or a stuck host keeps the test port busy for the next run.
-    if (-not $p.HasExited) { taskkill /T /F /PID $p.Id | Out-Null; $failed++ ; continue }
-    if ($p.ExitCode -ne 0) { $failed++ }
+    if (-not $p.HasExited) { taskkill /T /F /PID $p.Id | Out-Null; $failed++; Write-Host "TIMED OUT: $($p.Role)"; continue }
+    if ($p.ExitCode -ne 0) { $failed++; Write-Host "EXIT CODE '$($p.ExitCode)': $($p.Role)" }
 }
 Get-ChildItem $LogDir -Filter *.log | ForEach-Object {
     Get-Content $_.FullName | Select-String -Pattern "PASS|FAIL|NET SMOKE|SCRIPT ERROR|ERROR:"

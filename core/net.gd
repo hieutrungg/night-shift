@@ -13,6 +13,8 @@ const MENU_SCENE_PATH: String = "res://ui/main_menu/main_menu.tscn"
 const MAX_NAME_LENGTH: int = 16
 ## Lets the rejection message reach the peer before it is disconnected.
 const KICK_DELAY_SEC: float = 0.5
+## A refused client gives up on its own if the host never kicks it.
+const REJECT_FALLBACK_SEC: float = 3.0
 
 ## peer id -> display name. Only the host edits it; clients receive copies.
 var players: Dictionary[int, String] = {}
@@ -23,7 +25,11 @@ var is_solo: bool = false
 var last_end_reason_key: String = ""
 
 var _local_name: String = ""
+## Sent when joining; the host refuses a different build. Tests override it.
+var game_version: String = GameConfig.GAME_VERSION
 var _loaded_peers: Array[int] = []
+## Reason the host gave for refusing us, while we wait to be disconnected.
+var _pending_rejection: String = ""
 
 
 func _ready() -> void:
@@ -95,7 +101,7 @@ func can_start_game() -> bool:
 func start_game() -> bool:
 	if not can_start_game():
 		return false
-	_begin_game.rpc()
+	_broadcast_begin_game()
 	return true
 
 
@@ -103,7 +109,7 @@ func start_game() -> bool:
 func restart_match() -> bool:
 	if not multiplayer.is_server() or not in_game:
 		return false
-	_begin_game.rpc()
+	_broadcast_begin_game()
 	return true
 
 
@@ -132,11 +138,12 @@ func _level_loaded() -> void:
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _request_register(player_name: String) -> void:
+func _request_register(player_name: String, version: String) -> void:
 	if not multiplayer.is_server():
 		return
 	var peer_id := multiplayer.get_remote_sender_id()
-	var reason := _admission_problem()
+	# A different build would desync silently, so refuse it with a clear reason.
+	var reason := "ERR_VERSION_MISMATCH" if version != GameConfig.GAME_VERSION else _admission_problem()
 	if not reason.is_empty():
 		_reject(peer_id, reason)
 		return
@@ -156,7 +163,17 @@ func _sync_roster(roster: Dictionary) -> void:
 
 @rpc("authority", "call_remote", "reliable")
 func _rejected(reason_key: String) -> void:
-	_fail_join(reason_key)
+	# The host closes the connection: closing it from here races the host's
+	# messages about other peers joining, which it would still send to us.
+	_pending_rejection = reason_key
+	get_tree().create_timer(REJECT_FALLBACK_SEC).timeout.connect(_finish_rejection)
+
+
+func _finish_rejection() -> void:
+	if _pending_rejection.is_empty():
+		return
+	var reason := _pending_rejection
+	_fail_join(reason)
 
 
 func _on_peer_connected(peer_id: int) -> void:
@@ -181,7 +198,7 @@ func _on_peer_disconnected(peer_id: int) -> void:
 
 
 func _on_connected_to_server() -> void:
-	_request_register.rpc_id(1, _local_name)
+	_request_register.rpc_id(1, _local_name, game_version)
 
 
 func _on_connection_failed() -> void:
@@ -189,6 +206,9 @@ func _on_connection_failed() -> void:
 
 
 func _on_server_disconnected() -> void:
+	if not _pending_rejection.is_empty():
+		_finish_rejection()
+		return
 	return_to_menu("MSG_HOST_LEFT")
 
 
@@ -207,7 +227,8 @@ func _reject(peer_id: int, reason_key: String) -> void:
 
 func _kick(peer_id: int) -> void:
 	if is_online() and multiplayer.get_peers().has(peer_id):
-		multiplayer.multiplayer_peer.disconnect_peer(peer_id)
+		# Through SceneMultiplayer, so the peer leaves its relay list right away.
+		(multiplayer as SceneMultiplayer).disconnect_peer(peer_id)
 
 
 func _fail_join(reason_key: String) -> void:
@@ -216,9 +237,28 @@ func _fail_join(reason_key: String) -> void:
 	join_failed.emit(reason_key)
 
 
+## Only registered players get lobby messages: a refused peer is still
+## connected until it is kicked, and must never load the level.
 func _broadcast_roster() -> void:
 	var roster: Dictionary = players.duplicate()
-	_sync_roster.rpc(roster)
+	for peer_id: int in _remote_players():
+		_sync_roster.rpc_id(peer_id, roster)
+	_sync_roster(roster)
+
+
+func _broadcast_begin_game() -> void:
+	for peer_id: int in _remote_players():
+		_begin_game.rpc_id(peer_id)
+	_begin_game()
+
+
+func _remote_players() -> Array[int]:
+	var connected := multiplayer.get_peers()
+	var remote: Array[int] = []
+	for peer_id: int in players.keys():
+		if peer_id != multiplayer.get_unique_id() and connected.has(peer_id):
+			remote.append(peer_id)
+	return remote
 
 
 func _mark_loaded(peer_id: int) -> void:
@@ -249,6 +289,7 @@ func _close_peer() -> void:
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	players.clear()
 	_loaded_peers.clear()
+	_pending_rejection = ""
 	in_game = false
 	is_solo = false
 

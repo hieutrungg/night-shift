@@ -1,7 +1,8 @@
 extends GreyboxLevel
 ## Greybox 01: one-floor office block, 12 rooms around a central corridor,
 ## a fenced parking lot below it (truck, parked cars, street lamps, gate);
-## the mannequin starts in the top-right room. Bulky loot (B) waits in the
+## mannequins start in the showroom (top right), the staff lockers and the
+## meeting room; bigger groups wake more of them. Bulky loot (B) waits in the
 ## archive, top-left, which is as far from the entrance as the showroom.
 ## Legend: see greybox_level.gd. Outdoor dressing: greybox_01_decor.gd.
 
@@ -15,10 +16,10 @@ const LAYOUT: PackedStringArray = [
 	"#.......#......i#...#.......#.......#",
 	"####D############...############D####",
 	"#.......#.......#...#.......#.......#",
-	"#...L...#..i....#.L.#...L...#...L...#",
+	"#...L...#..i....#.L.#...L...#..ML...#",
 	"#....i..D...L...D...D.......D.......#",
 	"#.......#.......#...#..i....#..i....#",
-	"#.......#.......#...#.......#.......#",
+	"#.......#.M.....#...#.......#.......#",
 	"############D####...####D############",
 	"#.......#.......#...#.......#.......#",
 	"#...L...#.......#.L.#...L...#...L...#",

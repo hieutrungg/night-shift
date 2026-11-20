@@ -3,6 +3,9 @@ extends Node
 const LEVEL: PackedScene = preload("res://levels/greybox_01/greybox_01.tscn")
 const PLAYER: PackedScene = preload("res://features/player/player.tscn")
 const FRAMES_TO_SETTLE: int = 30
+## The rider is placed in physics, the arriving truck moves in idle, so the
+## rider can trail by one frame of truck travel.
+const SEAT_FOLLOW_TOLERANCE: float = 0.3
 
 var failures: int = 0
 var caught_count: int = 0
@@ -44,7 +47,7 @@ func _ready() -> void:
 	Input.action_press(InputActions.MOVE_FORWARD)
 	await _frames(FRAMES_TO_SETTLE)
 	Input.action_release(InputActions.MOVE_FORWARD)
-	_check(player.seat_index >= 0 and player.global_position.distance_to(trip.seat_position(player.seat_index)) < 0.1 and player.velocity.is_zero_approx(), "seated player follows truck instead of walking")
+	_check(player.seat_index >= 0 and player.global_position.distance_to(trip.seat_position(player.seat_index)) < SEAT_FOLLOW_TOLERANCE and player.velocity.is_zero_approx(), "seated player follows truck instead of walking")
 	trip.motion_tween.custom_step(GameConfig.ARRIVAL_SEC)
 	_check(not engine.playing, "engine stops when the truck parks")
 	trip.motion_tween.kill()

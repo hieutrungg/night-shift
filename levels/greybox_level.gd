@@ -26,6 +26,8 @@ const ITEM_SCENE: PackedScene = preload("res://features/items/item.tscn")
 const HUD_SCENE: PackedScene = preload("res://ui/hud/hud.tscn")
 const VAN_SCENE: PackedScene = preload("res://features/round/van.tscn")
 const MONSTER_SCENE: PackedScene = preload("res://features/monster/mannequin.tscn")
+## Mannequins start slightly above the floor and settle with gravity.
+const MONSTER_SPAWN_LIFT: float = 0.1
 const RESTART_FLUSH_FRAMES: int = 2
 ## Time for in-flight player movement packets to land before despawning.
 const RESTART_SYNC_STOP_SEC: float = 0.25
@@ -53,6 +55,9 @@ const FLOOR_THICKNESS: float = 0.01
 
 ## 0 picks new loot every round; any other value repeats the same loot.
 @export var item_seed: int = 0
+## Each round the real showroom mannequin may secretly take a decoy's place.
+## Tests that need it at a known spot turn this off before adding the level.
+@export var shuffle_showroom: bool = true
 
 var _rows: PackedStringArray = []
 var _player: Player = null
@@ -66,7 +71,7 @@ var _items_root: Node3D
 var _item_spawner: MultiplayerSpawner
 var _monsters_root: Node3D
 var _monster_spawner: MultiplayerSpawner
-var _monster: Mannequin = null
+var _monsters: Array[Mannequin] = []
 var _spectator: Spectator = null
 var _flicker: LightFlicker
 var _doors: Array[Door] = []
@@ -225,9 +230,19 @@ func get_light_flicker() -> LightFlicker:
 	return _flicker
 
 
-## Null until the host spawned it (or when the layout has no M cell).
+## The first mannequin (the showroom one); null until spawned.
 func get_monster() -> Mannequin:
-	return _monster if is_instance_valid(_monster) else null
+	var monsters := get_monsters()
+	return monsters[0] if not monsters.is_empty() else null
+
+
+## Every spawned mannequin, in spawn order.
+func get_monsters() -> Array[Mannequin]:
+	var result: Array[Mannequin] = []
+	for monster in _monsters:
+		if is_instance_valid(monster) and not monster.is_queued_for_deletion():
+			result.append(monster)
+	return result
 
 
 ## Host only: kills a player (monster touch). Ends the round when nobody is left.
@@ -427,7 +442,7 @@ func _build_cell(col: int, row: int, cell: String) -> void:
 		"V":
 			_van_cells.append(center)
 		"M":
-			_monster_spawns.append(center + Vector3.UP * 0.1)
+			_monster_spawns.append(center + Vector3.UP * MONSTER_SPAWN_LIFT)
 		"B":
 			_bulky_spawns.append(center + Vector3.UP * BULKY_SPAWN_HEIGHT)
 
@@ -601,7 +616,7 @@ func _setup_player_spawning() -> void:
 func _on_all_players_loaded() -> void:
 	var total_value := _spawn_all_items()
 	_spawn_all_players()
-	_spawn_monster()
+	_spawn_monsters()
 	_round.start(_quota_for(total_value))
 	_trip.begin_arrival()
 
@@ -698,16 +713,16 @@ func _on_round_started(_duration_sec: float, _quota: int) -> void:
 	if _van != null:
 		_van.accepting = true
 		_van.play_horn()
-	if get_monster() != null:
-		_monster.hunting = true
+	for monster in get_monsters():
+		monster.hunting = true
 
 
 func _on_round_ended(_success: bool, _collected: int, _quota: int) -> void:
 	if _van != null:
 		_van.accepting = false
 		_van.play_horn()
-	if get_monster() != null:
-		_monster.hunting = false
+	for monster in get_monsters():
+		monster.hunting = false
 
 
 func _spawn_all_players() -> void:
@@ -779,29 +794,90 @@ func _setup_monster_spawning() -> void:
 	_monster_spawner.name = "MonsterSpawner"
 	add_child(_monster_spawner)
 	_monster_spawner.spawn_path = _monster_spawner.get_path_to(_monsters_root)
-	_monster_spawner.add_spawnable_scene(MONSTER_SCENE.resource_path)
+	_monster_spawner.spawn_function = _create_monster
 	_monsters_root.child_entered_tree.connect(_on_monster_entered)
 
 
-## Host only. MVP: one mannequin at the first M cell.
-func _spawn_monster() -> void:
-	if not multiplayer.is_server() or _monster_spawns.is_empty():
+## Host only. One mannequin per M cell up to GameConfig.mannequin_count();
+## bigger groups get more because one watcher can freeze a single mannequin.
+## The spawner sends each one's spawn data so every peer builds it the same way.
+func _spawn_monsters() -> void:
+	if not multiplayer.is_server():
 		return
+	var players := 1 if Net.is_solo else Net.players.size()
+	var count := mini(GameConfig.mannequin_count(players), _monster_spawns.size())
+	for index in count:
+		_monster_spawner.spawn(_monster_spawn_data(index))
+
+
+## Where mannequin `index` starts. The first one may take a random decoy's
+## place in the showroom (swap >= 0), so players cannot learn which is real.
+func _monster_spawn_data(index: int) -> Dictionary:
+	var data := {"index": index, "position": _monster_spawns[index], "turn": 0.0, "pose": 0, "swap": -1}
+	var decoys := _decoys()
+	if index > 0 or not shuffle_showroom or decoys.is_empty():
+		return data
+	var swap := randi_range(-1, decoys.size() - 1)
+	if swap < 0:
+		return data
+	var decoy := decoys[swap]
+	data["position"] = decoy.global_position + Vector3.UP * MONSTER_SPAWN_LIFT
+	data["turn"] = decoy.rotation.y
+	data["pose"] = (decoy.get_node(^"Figure") as MannequinBody).start_pose
+	data["swap"] = swap
+	return data
+
+
+func _create_monster(spawn_data: Variant) -> Node:
+	var info: Dictionary = spawn_data
+	var index: int = info["index"]
+	var swap: int = info["swap"]
+	var start: Vector3 = info["position"]
+	var turn: float = info["turn"]
+	var pose: int = info["pose"]
 	var monster := MONSTER_SCENE.instantiate() as Mannequin
-	monster.name = "Mannequin"
-	monster.position = _monster_spawns[0]
-	monster.player_caught.connect(kill_player)
+	monster.name = "Mannequin_%d" % index
+	monster.position = start
+	monster.rotation.y = turn
+	monster.pose_index = pose
+	monster.asleep_for = GameConfig.mannequin_wake_delay(index, Net.is_solo)
 	if Net.is_solo:
 		monster.move_speed *= GameConfig.SOLO_MONSTER_SPEED_SCALE
-		monster.asleep_for = GameConfig.SOLO_MONSTER_WAKE_DELAY_SEC
-	_monsters_root.add_child(monster, true)
+	if multiplayer.is_server():
+		monster.player_caught.connect(kill_player)
+	if swap >= 0:
+		_put_decoy_at_spawn(swap)
+	return monster
+
+
+## The swapped decoy stands where the real mannequin usually starts, in the
+## real one's starting pose, so the showroom looks the same every round.
+func _put_decoy_at_spawn(swap: int) -> void:
+	var decoys := _decoys()
+	if swap >= decoys.size():
+		return
+	var decoy := decoys[swap]
+	var spot := _monster_spawns[0]
+	decoy.global_position = Vector3(spot.x, decoy.global_position.y, spot.z)
+	decoy.rotation.y = 0.0
+	(decoy.get_node(^"Figure") as MannequinBody).set_pose(0)
+
+
+## Showroom decoys in decor order (the same on every peer).
+func _decoys() -> Array[Node3D]:
+	var result: Array[Node3D] = []
+	for node in get_tree().get_nodes_in_group(PropFactory.DECOY_GROUP):
+		var decoy := node as Node3D
+		if decoy != null and is_ancestor_of(decoy):
+			result.append(decoy)
+	return result
 
 
 func _on_monster_entered(node: Node) -> void:
 	var monster := node as Mannequin
 	if monster != null:
-		_monster = monster
-		_flicker.monster = monster
+		_monsters.append(monster)
+		_flicker.monsters.append(monster)
 
 
 func _setup_atmosphere() -> void:

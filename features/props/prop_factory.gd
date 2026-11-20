@@ -15,6 +15,7 @@ const CAR_KIT_SCALE: float = 1.7
 const CENTIMETRES: float = 0.01
 const MANNEQUIN_SIZE: Vector3 = Vector3(0.55, 1.82, 0.4)
 const MANNEQUIN: String = "mannequin"
+const DECOY_GROUP: StringName = &"mannequin_decoys"
 ## Built from primitives: id -> footprint size (x, y, z) before turning.
 const PROCEDURAL: Dictionary[String, Vector3] = {
 	"streetLamp": Vector3(0.3, 4.6, 0.3),
@@ -147,11 +148,14 @@ static func _instantiate_model(id: String) -> Node3D:
 	return model
 
 
-## A decoy: looks exactly like the real mannequin but never moves.
+## A decoy: looks exactly like the real mannequin but never moves. Decoys are
+## grouped so the level can secretly swap one with the real mannequin.
 static func _create_mannequin(pose: int) -> Node3D:
 	var body := StaticBody3D.new()
 	body.collision_layer = GameConfig.LAYER_WORLD
+	body.add_to_group(DECOY_GROUP)
 	var figure := MannequinBody.new()
+	figure.name = "Figure"
 	figure.start_pose = pose
 	body.add_child(figure)
 	body.add_child(_box_shape(MANNEQUIN_SIZE))

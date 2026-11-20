@@ -54,6 +54,8 @@ ERR_GAME_IN_PROGRESS,The game has already started.,Trận đã bắt đầu rồ
 ERR_CONNECT_FAILED,Could not connect. Check the IP and that the host has created a room.,Không kết nối được. Kiểm tra IP và chủ phòng đã tạo phòng chưa.
 ERR_HOST_FAILED,"Could not host on port {port}: {error}","Không tạo được phòng ở cổng {port}: {error}"
 ERR_INVALID_ADDRESS,Enter the host's IP address.,Hãy nhập IP của chủ phòng.
+ERR_VERSION_MISMATCH,"Your game version is different from the host's. Everyone needs the same build (yours: v{version}).","Phiên bản game của bạn khác chủ phòng. Mọi người phải dùng cùng một bản (của bạn: v{version})."
+UI_VERSION,v{version},v{version}
 HUD_DEPOSIT,[E] Load into the van,[E] Chất lên xe
 HUD_TIME_LEFT,Time left: {time},Thời gian còn: {time}
 HUD_QUOTA,"Quota: ${current} / ${target}","Chỉ tiêu: ${current} / ${target}"

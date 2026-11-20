@@ -18,6 +18,9 @@ const BULKY_MAX_DISTANCE: float = 1.0
 const DOOR_SWING_FRAMES: int = 40
 ## Ceiling lights (15) + street lamps (4) + entrance lamp (1).
 const MIN_MANNEQUIN_LIGHTS: int = 20
+## Tries of the random showroom pick; with 4 outcomes, 60 tries all but
+## guarantee both a swap and a no-swap.
+const SHOWROOM_PICKS: int = 60
 ## Up to five seconds for a dropped item to stop rolling.
 const ITEM_SETTLE_FRAMES: int = 300
 
@@ -43,9 +46,12 @@ func _run() -> void:
 	# Offline peer acts as host (id 1); register it so the level spawns one player.
 	Net.players[1] = "Tester"
 	var level := LEVEL_SCENE.instantiate() as GreyboxLevel
+	# The chase checks below need the showroom mannequin at its usual spot.
+	level.shuffle_showroom = false
 	add_child(level)
 	await _physics_frames(30)
 
+	_check_mannequin_rules(level)
 	var player := level.get_player()
 	_check(player != null, "player spawned")
 	if player == null:
@@ -135,6 +141,38 @@ func _check_sounds() -> void:
 
 
 ## The lot is fenced in and its lamps count as light for the mannequin rule.
+## Mannequin count grows with the group and they wake one after another; the
+## showroom pick sometimes swaps the real mannequin with a decoy.
+func _check_mannequin_rules(level: GreyboxLevel) -> void:
+	var counts: Array[int] = []
+	for players in range(1, GameConfig.MAX_PLAYERS + 1):
+		counts.append(GameConfig.mannequin_count(players))
+	_check(counts == [1, 2, 2, 3], "mannequins per 1-4 players are %s" % str(counts))
+	var delays := GameConfig.MANNEQUIN_WAKE_DELAYS_SEC
+	_check(delays[0] < delays[1] and delays[1] < delays[2], "each extra mannequin wakes later")
+	_check(level.get_monsters().size() == 1, "one player faces one mannequin")
+	var spot: Vector3 = level._monster_spawn_data(0)["position"]
+	level.shuffle_showroom = true
+	var swaps := 0
+	var poses_match := true
+	for attempt in SHOWROOM_PICKS:
+		var data := level._monster_spawn_data(0)
+		var swap: int = data["swap"]
+		if swap < 0:
+			continue
+		swaps += 1
+		var decoy := level._decoys()[swap]
+		var at: Vector3 = data["position"]
+		var pose: int = data["pose"]
+		var figure := decoy.get_node(^"Figure") as MannequinBody
+		poses_match = poses_match and pose == figure.start_pose \
+			and Vector2(at.x - decoy.global_position.x, at.z - decoy.global_position.z).length() < 0.01
+	level.shuffle_showroom = false
+	_check(swaps > 0 and swaps < SHOWROOM_PICKS, "the real showroom mannequin is sometimes a decoy's spot (%d/%d)" % [swaps, SHOWROOM_PICKS])
+	_check(poses_match, "a swapped mannequin copies the decoy's spot and pose")
+	_check(spot.distance_to(level.get_monster().global_position) < 0.5, "without shuffle it starts at the showroom M cell")
+
+
 func _check_exterior(level: GreyboxLevel) -> void:
 	var lights := get_tree().get_nodes_in_group(MannequinSight.LIGHT_GROUP).size()
 	_check(lights >= MIN_MANNEQUIN_LIGHTS, "street and entrance lamps are mannequin lights (%d)" % lights)

@@ -30,6 +30,9 @@ const WINNER_HOLD_SEC: float = 4.0
 const SHUTDOWN_FRAMES: int = 30
 ## The host sets this mannequin pose; clients must see it.
 const SYNC_POSE: int = 2
+## Closer than this (m) means a decoy and a mannequin share a spot.
+const DECOY_CLEARANCE: float = 0.3
+const OUTDATED_VERSION: String = "0.0.0-outdated"
 ## Items spawned by greybox_01 at the start of a round (15 loot + 2 bulky).
 const ITEM_COUNT: int = 17
 ## Lets clients check the result before the host starts the next round.
@@ -52,6 +55,8 @@ func _ready() -> void:
 			await _run_client()
 		"extra":
 			await _run_extra()
+		"outdated":
+			await _run_outdated()
 		_:
 			_check(false, "unknown role '%s'" % _role)
 	_finish()
@@ -91,10 +96,14 @@ func _run_host() -> void:
 	_check(engine_started, "host hears engine during arrival")
 	var ready := await _wait_until(func() -> bool: return (get_tree().current_scene as GreyboxLevel).get_round().is_playing(), 25.0)
 	_check(ready, "host sees arrival complete")
-	var monster := (get_tree().current_scene as GreyboxLevel).get_monster()
+	var host_level := get_tree().current_scene as GreyboxLevel
+	_check_mannequins_on_host(host_level)
+	var monster := host_level.get_monster()
 	_check(monster != null, "mannequin spawned on the host")
+	# This test is about sync, not the chase: keep every mannequin asleep.
+	for sleeper in host_level.get_monsters():
+		sleeper.asleep_for = INF
 	if monster != null:
-		monster.asleep_for = INF  # This test is about sync, not the chase.
 		monster.pose_index = SYNC_POSE
 	var moved := await _wait_until(_all_clients_moved, 15.0)
 	_check(moved, "every client's movement reached the host")
@@ -183,6 +192,7 @@ func _run_client() -> void:
 		return
 	var arrival := await _wait_until(_arrival_synced, 10.0)
 	_check(arrival, "client sees all players seated during arrival")
+	await _check_mannequins_on_client(get_tree().current_scene as GreyboxLevel)
 	var engine_started := await _wait_until(_truck_engine_playing, 5.0)
 	_check(engine_started, "client hears engine during arrival")
 	var ready := await _wait_until(func() -> bool: return level.get_round().is_playing(), 25.0)
@@ -305,6 +315,45 @@ func _peer_id_of(player_name: String) -> int:
 		if Net.players[peer_id] == player_name:
 			return peer_id
 	return 0
+
+
+## Four players face GameConfig.mannequin_count(4) mannequins that wake one
+## after another (spawn order = wake order).
+func _check_mannequins_on_host(level: GreyboxLevel) -> void:
+	var monsters := level.get_monsters()
+	var expected := GameConfig.mannequin_count(Net.players.size())
+	_check(monsters.size() == expected, "host spawned %d mannequins for %d players (got %d)" % [expected, Net.players.size(), monsters.size()])
+	var staggered := true
+	for index in range(1, monsters.size()):
+		staggered = staggered and monsters[index].asleep_for > monsters[index - 1].asleep_for
+	_check(staggered, "mannequins wake one after another")
+
+
+## Spawn data travels with the spawner, so a client must have the same number
+## of mannequins and must have applied the secret showroom swap: no decoy may
+## stand where a real mannequin is.
+func _check_mannequins_on_client(level: GreyboxLevel) -> void:
+	var expected := GameConfig.mannequin_count(Net.players.size())
+	var spawned := await _wait_until(func() -> bool: return level.get_monsters().size() == expected, 10.0)
+	_check(spawned, "client sees %d mannequins (got %d)" % [expected, level.get_monsters().size()])
+	var clashes := 0
+	for node in get_tree().get_nodes_in_group(PropFactory.DECOY_GROUP):
+		var decoy := node as Node3D
+		for monster in level.get_monsters():
+			var gap := Vector2(decoy.global_position.x - monster.global_position.x,
+				decoy.global_position.z - monster.global_position.z)
+			if gap.length() < DECOY_CLEARANCE:
+				clashes += 1
+	_check(clashes == 0, "showroom swap matches the host (no decoy on a real mannequin)")
+
+
+## A client with another build is refused with a clear reason.
+func _run_outdated() -> void:
+	Net.game_version = OUTDATED_VERSION
+	_check(Net.join(ADDRESS, "Old", PORT) == OK, "outdated join started")
+	var refused := await _wait_until(func() -> bool: return not Net.last_end_reason_key.is_empty(), 20.0)
+	var reason := Net.last_end_reason_key
+	_check(refused and reason == "ERR_VERSION_MISMATCH", "outdated build refused with ERR_VERSION_MISMATCH (got '%s')" % reason)
 
 
 func _run_extra() -> void:

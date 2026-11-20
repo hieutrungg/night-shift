@@ -16,7 +16,7 @@ Mục tiêu: nhóm 2–4 người chơi được qua Radmin VPN, voice qua Disco
 - Map khối hộp, khoảng 12–20 phòng, 2 tầng.
 - Người chơi góc nhìn thứ nhất: đi, chạy, ngồi, đèn pin, mở cửa, nhặt/thả đồ.
 - Vòng chơi: xe đưa đội đến → xuống xe → nhặt đồ → đạt chỉ tiêu → cả đội lên xe hoặc tài xế giữ G để rời đi; hết giờ xe vẫn rời đi. Trên xe an toàn khỏi ma-nơ-canh, người bị bỏ lại tính là chết → kết quả → chơi lại.
-- Một quái: **ma-nơ-canh** — chỉ đứng yên khi người còn sống nhìn thấy phần cơ thể được đèn pin hoặc đèn trần chiếu sáng; giết trong tầm 1,2 m kể cả khi đứng yên, có kiểm tra tường/cửa chắn. Nhạc truy đuổi bắt đầu khi nó di chuyển, càng gần càng rõ và phát thêm 2 giây sau khi nó dừng.
+- Một loại quái: **ma-nơ-canh**. Số con theo số người (1 người: 1, 2–3 người: 2, 4 người: 3), thức dậy lần lượt; con ở phòng trưng bày được tráo ngẫu nhiên với một con giả mỗi vòng. Nó chỉ đứng yên khi người còn sống nhìn thấy phần cơ thể được đèn pin hoặc đèn trần chiếu sáng; giết trong tầm 1,2 m kể cả khi đứng yên, có kiểm tra tường/cửa chắn. Nhạc truy đuổi bắt đầu khi nó di chuyển, càng gần càng rõ và phát thêm 2 giây sau khi nó dừng.
 - Chết → chế độ xem người còn sống.
 - Menu: Host / Join bằng IP / Settings (ngôn ngữ en/vi, độ nhạy chuột, âm lượng) / Quit.
 - Xuất được file `.exe` cho Windows.
