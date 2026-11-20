@@ -16,6 +16,7 @@ var _round: RoundManager = null
 var _shown_seconds: int = -1
 var _spectate_target: Player = null
 var _last_beep_second: int = -1
+var _player: Player = null
 
 @onready var _prompt_label: Label = %PromptLabel
 @onready var _held_label: Label = %HeldLabel
@@ -24,6 +25,7 @@ var _last_beep_second: int = -1
 @onready var _death_panel: Control = %DeathPanel
 @onready var _spectate_label: Label = %SpectateLabel
 @onready var _pause_panel: Control = %PausePanel
+@onready var _paused_label: Label = %PausedLabel
 @onready var _settings_button: Button = %SettingsButton
 @onready var _leave_button: Button = %LeaveButton
 @onready var _settings_panel: SettingsPanel = %SettingsPanel
@@ -44,6 +46,7 @@ func _ready() -> void:
 	_quota_label.text = ""
 	_results_panel.visible = false
 	_death_panel.visible = false
+	_paused_label.visible = Net.is_solo
 	_sting_sound.stream = Sfx.death_sting()
 	_beep_sound.stream = Sfx.beep()
 	Settings.locale_changed.connect(_on_locale_changed)
@@ -56,12 +59,16 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	# Esc frees the mouse; that is when the pause buttons are reachable.
-	var overlay_open := _results_panel.visible or _settings_panel.visible
-	_pause_panel.visible = Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not overlay_open
+	var menu_open := Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not _results_panel.visible
+	_pause_panel.visible = menu_open and not _settings_panel.visible
+	# Only solo can freeze the world; online the others keep playing.
+	if Net.is_solo and get_tree().paused != menu_open:
+		get_tree().paused = menu_open
 	_refresh_time()
 
 
 func bind_player(player: Player) -> void:
+	_player = player
 	player.interact_prompt_changed.connect(_on_interact_prompt_changed)
 	player.held_item_changed.connect(_on_held_item_changed)
 
@@ -184,3 +191,14 @@ func _maybe_beep(seconds: int) -> void:
 	if seconds in WARNING_BEEP_SECONDS or seconds <= FINAL_BEEP_SEC:
 		_last_beep_second = seconds
 		_beep_sound.play()
+
+
+# While a solo game is paused the player node gets no input, so the HUD
+# (which always runs) handles the click that resumes it.
+func _unhandled_input(event: InputEvent) -> void:
+	if not get_tree().paused or _settings_panel.visible or not is_instance_valid(_player):
+		return
+	var click := event as InputEventMouseButton
+	if click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
+		_player.capture_mouse()
+		get_viewport().set_input_as_handled()

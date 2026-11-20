@@ -462,7 +462,8 @@ func _on_all_players_loaded() -> void:
 
 
 func _quota_for(total_value: int) -> int:
-	var steps := roundi(total_value * GameConfig.QUOTA_RATIO / GameConfig.QUOTA_STEP)
+	var ratio := GameConfig.SOLO_QUOTA_RATIO if Net.is_solo else GameConfig.QUOTA_RATIO
+	var steps := roundi(total_value * ratio / GameConfig.QUOTA_STEP)
 	return maxi(steps, 1) * GameConfig.QUOTA_STEP
 
 
@@ -622,6 +623,9 @@ func _spawn_monster() -> void:
 	monster.name = "Mannequin"
 	monster.position = _monster_spawns[0]
 	monster.player_caught.connect(kill_player)
+	if Net.is_solo:
+		monster.move_speed *= GameConfig.SOLO_MONSTER_SPEED_SCALE
+		monster.asleep_for = GameConfig.SOLO_MONSTER_WAKE_DELAY_SEC
 	_monsters_root.add_child(monster, true)
 
 

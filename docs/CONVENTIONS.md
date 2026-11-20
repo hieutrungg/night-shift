@@ -109,10 +109,11 @@ Mẫu bắt buộc:
 2. Host **kiểm tra** (`multiplayer.is_server()`), dùng `multiplayer.get_remote_sender_id()` để biết ai gửi, từ chối nếu không hợp lệ (quá xa, đồ đã có người cầm, người đã chết...).
 3. Host **phát kết quả**: `@rpc("authority", "call_local", "reliable")` tới mọi người.
 
-### Số người chơi (luật cứng)
+### Số người chơi (luật cứng cho chế độ online)
 - **Tối thiểu 2, tối đa 4**, tính cả host. Dùng `GameConfig.MIN_PLAYERS` / `GameConfig.MAX_PLAYERS` trong `core/game_config.gd`; không viết số 2 hay 4 ở chỗ khác.
 - Tạo server với `max_clients = GameConfig.MAX_PLAYERS` (dư 1 chỗ so với số client thật): người thừa vẫn kết nối được để host gửi lý do `ERR_ROOM_FULL` rồi ngắt sau `Net.KICK_DELAY_SEC`. Nếu để ENet tự từ chối, người thừa chỉ thấy kết nối bị treo đến khi hết thời gian chờ. Việc nhận/từ chối nằm trong `core/net.gd` (`_admission_problem`).
-- Host chỉ bắt đầu vòng chơi khi số người >= `MIN_PLAYERS`. Không thêm chế độ chơi một mình hay cờ bỏ qua luật này.
+- Host chỉ bắt đầu vòng chơi online khi số người >= `MIN_PLAYERS`. Không thêm cờ hay ngoại lệ nào bỏ qua luật này cho chế độ online.
+- **Chế độ chơi một mình** là chế độ riêng, hoàn toàn offline: `Net.start_solo()` (nút "Chơi một mình" ở menu). Không mở cổng mạng, không có phòng chờ, không dùng để lách luật 2–4 người. Chỉnh độ khó riêng bằng các hằng `GameConfig.SOLO_*`. Chỉ ở chế độ này, Esc mới tạm dừng cả thế giới (`get_tree().paused`).
 
 Thêm:
 - Node người chơi tên là chính peer id (`str(peer_id)`), authority của node đó (chỉ phần chuyển động) là peer id đó.
@@ -174,6 +175,8 @@ Thêm:
      `godot --headless --path . --check-only --script res://duong/dan/file.gd`
   3. Chạy các scene kiểm tra trong `tests/` (in `PASS`/`FAIL`, thoát với mã 0 nếu đạt):
      `godot --headless --path . res://tests/smoke_day1.tscn`
+     Thay đổi về menu, vòng chơi hay chế độ một mình thì chạy thêm:
+     `godot --headless --path . res://tests/solo_smoke.tscn`
      Thay đổi về mạng thì chạy thêm bài test nhiều tiến trình (1 host, 3 client, 1 người thừa):
      `powershell -ExecutionPolicy Bypass -File tests/run_net_smoke.ps1`
      Xuất bản build cho bạn bè (exe + LICENSES.txt + HOW_TO_PLAY.txt, nén thành `build/NightShift.zip`):

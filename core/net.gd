@@ -17,6 +17,8 @@ const KICK_DELAY_SEC: float = 0.5
 ## peer id -> display name. Only the host edits it; clients receive copies.
 var players: Dictionary[int, String] = {}
 var in_game: bool = false
+## True for an offline single-player match (no network peer at all).
+var is_solo: bool = false
 ## Translation key explaining why the last session ended; the menu shows it once.
 var last_end_reason_key: String = ""
 
@@ -67,9 +69,21 @@ func leave() -> void:
 
 
 func return_to_menu(reason_key: String = "") -> void:
+	# A solo match may be left from the pause screen.
+	get_tree().paused = false
 	_close_peer()
 	last_end_reason_key = reason_key
 	get_tree().change_scene_to_file(MENU_SCENE_PATH)
+
+
+## Offline single-player match: no port is opened and the 2-4 player rule for
+## online matches is untouched.
+func start_solo(player_name: String) -> void:
+	_close_peer()
+	is_solo = true
+	players[1] = _clean_name(player_name, 1)
+	_set_window_title(players[1])
+	_begin_game()
 
 
 func can_start_game() -> bool:
@@ -104,6 +118,7 @@ func report_level_loaded() -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _begin_game() -> void:
+	get_tree().paused = false
 	in_game = true
 	_loaded_peers.clear()
 	get_tree().change_scene_to_file(LEVEL_SCENE_PATH)
@@ -235,6 +250,7 @@ func _close_peer() -> void:
 	players.clear()
 	_loaded_peers.clear()
 	in_game = false
+	is_solo = false
 
 
 func _set_window_title(player_name: String) -> void:

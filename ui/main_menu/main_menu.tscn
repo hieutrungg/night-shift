@@ -51,6 +51,23 @@ custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 placeholder_text = "UI_NAME_PLACEHOLDER"
 
+[node name="SoloButton" type="Button" parent="Center/Column/MenuPanel"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "UI_SOLO"
+
+[node name="FriendsSeparator" type="HSeparator" parent="Center/Column/MenuPanel"]
+layout_mode = 2
+
+[node name="FriendsLabel" type="Label" parent="Center/Column/MenuPanel"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+theme_override_colors/font_color = Color(0.75, 0.8, 0.9, 1)
+autowrap_mode = 3
+
 [node name="AddressEdit" type="LineEdit" parent="Center/Column/MenuPanel"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 40)
@@ -76,14 +93,21 @@ layout_mode = 2
 size_flags_horizontal = 3
 text = "UI_JOIN"
 
-[node name="SettingsButton" type="Button" parent="Center/Column/MenuPanel/Buttons"]
+[node name="SystemSeparator" type="HSeparator" parent="Center/Column/MenuPanel"]
+layout_mode = 2
+
+[node name="SystemButtons" type="HBoxContainer" parent="Center/Column/MenuPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SettingsButton" type="Button" parent="Center/Column/MenuPanel/SystemButtons"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 size_flags_horizontal = 3
 text = "UI_SETTINGS"
 
-[node name="QuitButton" type="Button" parent="Center/Column/MenuPanel/Buttons"]
+[node name="QuitButton" type="Button" parent="Center/Column/MenuPanel/SystemButtons"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2

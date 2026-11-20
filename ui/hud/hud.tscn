@@ -4,6 +4,7 @@
 [ext_resource type="PackedScene" path="res://ui/settings/settings_panel.tscn" id="2_settings"]
 
 [node name="Hud" type="CanvasLayer"]
+process_mode = 3
 script = ExtResource("1_hud")
 
 [node name="Root" type="Control" parent="."]
@@ -89,6 +90,16 @@ mouse_filter = 2
 [node name="Box" type="VBoxContainer" parent="Root/PausePanel"]
 layout_mode = 2
 theme_override_constants/separation = 12
+
+[node name="PausedLabel" type="Label" parent="Root/PausePanel/Box"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 36
+text = "UI_PAUSED"
+horizontal_alignment = 1
 
 [node name="ResumeHint" type="Label" parent="Root/PausePanel/Box"]
 layout_mode = 2

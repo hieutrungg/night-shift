@@ -53,3 +53,6 @@ HUD_SPECTATING,Watching {name} · [Space] next player,Đang xem {name} · [Space
 ROUND_REASON_TIME_UP,Time's up.,Hết giờ.
 ROUND_REASON_ALL_COLLECTED,All loot collected.,Đã thu hết đồ.
 ROUND_REASON_ALL_DEAD,Everyone died.,Cả đội đã chết.
+UI_SOLO,Play solo,Chơi một mình
+UI_WITH_FRIENDS,With friends ({min}–{max} players):,Chơi cùng bạn bè ({min}–{max} người):
+UI_PAUSED,Paused,Tạm dừng

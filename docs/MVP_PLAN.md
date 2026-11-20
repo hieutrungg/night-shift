@@ -2,9 +2,10 @@
 
 Mục tiêu: nhóm 2–4 người chơi được qua Radmin VPN, voice qua Discord. Hình khối, chưa cần đẹp.
 
-## Số người chơi — luật cứng
+## Số người chơi — luật cứng (online)
 
-- **Tối thiểu 2, tối đa 4 người** (tính cả host). Không có chế độ chơi một mình, không có ngoại lệ.
+- **Chơi online: tối thiểu 2, tối đa 4 người** (tính cả host). Không có ngoại lệ hay cờ bỏ qua luật này.
+- **Chế độ chơi một mình** (thêm sau ngày 7, theo yêu cầu): chế độ riêng, offline hoàn toàn, có nút riêng ở menu. Chỉ tiêu thấp hơn, ma-nơ-canh chậm hơn và ngủ lâu hơn đầu vòng; Esc tạm dừng game. Không ảnh hưởng luật 2–4 người của chế độ online.
 - Host không bắt đầu vòng chơi được khi chưa đủ 2 người.
 - Người thứ 5 kết nối vào sẽ bị từ chối kèm thông báo "phòng đã đầy".
 - Hai con số này chỉ được khai báo ở một chỗ: `core/game_config.gd` (`MIN_PLAYERS`, `MAX_PLAYERS`).

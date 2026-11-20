@@ -84,7 +84,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var mouse_button := event as InputEventMouseButton
 	if mouse_button and mouse_button.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
-		_capture_mouse()
+		capture_mouse()
 	elif event.is_action_pressed(InputActions.PAUSE):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif is_dead:
@@ -195,7 +195,7 @@ func _setup_local() -> void:
 	Settings.locale_changed.connect(_on_locale_changed)
 	_camera.current = true
 	_nameplate.visible = false
-	_capture_mouse()
+	capture_mouse()
 
 
 func _setup_remote() -> void:
@@ -207,7 +207,8 @@ func _setup_remote() -> void:
 	_nameplate.visible = true
 
 
-func _capture_mouse() -> void:
+## Locks the mouse for looking around (also used to resume a paused solo game).
+func capture_mouse() -> void:
 	_skip_next_mouse_motion = true
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 

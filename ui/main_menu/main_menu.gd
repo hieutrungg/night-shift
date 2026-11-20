@@ -10,6 +10,8 @@ var _status_args: Dictionary = {}
 @onready var _lobby_panel: Control = %LobbyPanel
 @onready var _name_edit: LineEdit = %NameEdit
 @onready var _address_edit: LineEdit = %AddressEdit
+@onready var _solo_button: Button = %SoloButton
+@onready var _friends_label: Label = %FriendsLabel
 @onready var _host_button: Button = %HostButton
 @onready var _join_button: Button = %JoinButton
 @onready var _settings_button: Button = %SettingsButton
@@ -27,6 +29,7 @@ func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_name_edit.text = Settings.player_name
 	_name_edit.max_length = Net.MAX_NAME_LENGTH
+	_solo_button.pressed.connect(_on_solo_pressed)
 	_host_button.pressed.connect(_on_host_pressed)
 	_join_button.pressed.connect(_on_join_pressed)
 	_settings_button.pressed.connect(_settings_panel.open)
@@ -37,10 +40,16 @@ func _ready() -> void:
 	Net.connected_to_lobby.connect(_show_lobby)
 	Net.join_failed.connect(_on_join_failed)
 	Settings.locale_changed.connect(_on_locale_changed)
+	_refresh_friends_label()
 	_show_menu()
 	if not Net.last_end_reason_key.is_empty():
 		_set_status(Net.last_end_reason_key)
 		Net.last_end_reason_key = ""
+
+
+func _on_solo_pressed() -> void:
+	Settings.set_player_name(_name_edit.text)
+	Net.start_solo(_name_edit.text)
 
 
 func _on_host_pressed() -> void:
@@ -83,6 +92,7 @@ func _on_quit_pressed() -> void:
 
 
 func _on_locale_changed(_locale: String) -> void:
+	_refresh_friends_label()
 	_refresh_lobby()
 	if not _status_key.is_empty():
 		_set_status(_status_key, _status_args)
@@ -157,6 +167,12 @@ func _set_status(key: String, args: Dictionary = {}) -> void:
 	_status_label.text = tr(key).format(values)
 
 
+func _refresh_friends_label() -> void:
+	_friends_label.text = tr("UI_WITH_FRIENDS").format(
+		{"min": GameConfig.MIN_PLAYERS, "max": GameConfig.MAX_PLAYERS})
+
+
 func _set_menu_buttons_enabled(enabled: bool) -> void:
+	_solo_button.disabled = not enabled
 	_host_button.disabled = not enabled
 	_join_button.disabled = not enabled

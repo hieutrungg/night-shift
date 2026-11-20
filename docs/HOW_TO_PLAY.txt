@@ -4,6 +4,8 @@ NIGHT SHIFT  -  playtest build (MVP)
 ENGLISH
 -------
 Players: 2 to 4 (the host counts). Voice chat: use Discord.
+Alone? Click "Play solo": no Radmin, no network. Esc pauses the game.
+Solo is a bit easier: lower quota, slower mannequin.
 
 1. Everyone: install Radmin VPN and join the same Radmin network.
 2. Unzip, run NightShift.exe. If Windows SmartScreen warns, click
@@ -31,6 +33,8 @@ same build.
 TIẾNG VIỆT
 ----------
 Số người: 2 đến 4 (tính cả chủ phòng). Nói chuyện qua Discord.
+Chơi một mình? Bấm "Chơi một mình": không cần Radmin, không cần mạng.
+Esc tạm dừng game. Chế độ này dễ hơn: chỉ tiêu thấp hơn, ma-nơ-canh chậm hơn.
 
 1. Mọi người: cài Radmin VPN và vào cùng một mạng Radmin.
 2. Giải nén, chạy NightShift.exe. Nếu Windows SmartScreen cảnh báo,

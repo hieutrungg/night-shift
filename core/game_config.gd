@@ -2,7 +2,8 @@ class_name GameConfig
 extends RefCounted
 ## Fixed game rules shared by every system. Change numbers only here.
 
-## Hard design rule: a match always has 2 to 4 players, host included.
+## Hard design rule: an online match always has 2 to 4 players, host included.
+## Solo mode is separate and fully offline (Net.start_solo); it never relaxes this.
 const MIN_PLAYERS: int = 2
 const MAX_PLAYERS: int = 4
 
@@ -21,6 +22,11 @@ const QUOTA_STEP: int = 10
 
 ## The monster stays still this long after a round starts, so players can get inside.
 const MONSTER_WAKE_DELAY_SEC: float = 20.0
+
+## Solo mode tuning: one person must both watch the mannequin and carry loot.
+const SOLO_QUOTA_RATIO: float = 0.35
+const SOLO_MONSTER_SPEED_SCALE: float = 0.75
+const SOLO_MONSTER_WAKE_DELAY_SEC: float = 30.0
 
 const DEFAULT_LOCALE: String = "en"
 const SUPPORTED_LOCALES: PackedStringArray = ["en", "vi"]
