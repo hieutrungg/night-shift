@@ -47,11 +47,12 @@ func _check_movement_music() -> void:
 	_check(_monster.is_moving() and _music.playing, "moving mannequin plays chase music")
 	_set_torch(_player, true)
 	await _frames(SETTLE_FRAMES)
-	_check(_monster.is_seen and not _monster.is_moving() and not _music.playing,
-		"flashlight freezes it and stops the music")
+	_check(_monster.is_seen and not _monster.is_moving() and _music.playing,
+		"flashlight freezes it while the music tail continues")
 	var frozen := _monster.global_position
-	await _frames(SETTLE_FRAMES)
+	await get_tree().create_timer(_monster.music_stop_delay_sec).timeout
 	_check(_monster.global_position.distance_to(frozen) < 0.01, "lit watched mannequin stays still")
+	_check(not _music.playing, "music stops after its two-second tail")
 	var torch := _player.get_node(^"Head/Camera3D/Flashlight") as SpotLight3D
 	torch.rotation.y = PI
 	await _frames(8)
@@ -59,7 +60,7 @@ func _check_movement_music() -> void:
 	torch.rotation = Vector3.ZERO
 	_monster.move_speed = 0.0
 	_monster.global_position = Vector3.ZERO
-	await _frames(SETTLE_FRAMES)
+	await get_tree().create_timer(_monster.music_stop_delay_sec + Mannequin.MOVING_HOLD_SEC).timeout
 	_check(not _music.playing, "stationary nearby mannequin has no music")
 	_check(_music.max_distance > 6.0 and _music.unit_size > 1.0, "music has proximity attenuation")
 

@@ -108,7 +108,9 @@ func _run_host_music_check(monster: Mannequin) -> void:
 	var music := monster.get_node(^"Music") as AudioStreamPlayer3D
 	_check(music.playing, "host plays music while mannequin moves")
 	await _seconds(0.6)
-	_check(not music.playing, "host stops music when mannequin stops")
+	_check(music.playing, "host keeps music playing briefly after mannequin stops")
+	await _seconds(monster.music_stop_delay_sec)
+	_check(not music.playing, "host stops music after the movement tail")
 	monster.pose_index = SYNC_POSE
 	var client := Player.find_by_peer(get_tree(), _peer_id_of("C1"))
 	_check(client != null and not client.is_flashlight_on(), "client flashlight off state reached the host")

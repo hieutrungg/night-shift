@@ -25,8 +25,8 @@ no jumping. Have a friend watch your back.
 THE MANNEQUIN freezes only when a living player sees its body lit by a
 flashlight or ceiling light. Looking in darkness will not stop it.
 Stay more than 1.2 m away: it can kill even while frozen, but cannot reach
-through walls or closed doors. Chase music plays only while it moves,
-gets louder nearby, and stops when it stops. Nearby lights flicker.
+through walls or closed doors. Chase music starts when it moves,
+gets louder nearby, and continues for 2 seconds after it stops. Nearby lights flicker.
 Dead players watch the others (Space = next).
 
 Controls: WASD move, Shift sprint, Ctrl crouch (quiet), Space jump,
@@ -58,8 +58,8 @@ khi khiêng chỉ đi được rất chậm: không chạy, không nhảy. Nhờ
 MA-NƠ-CANH chỉ đứng yên khi người còn sống nhìn thấy phần cơ thể được đèn
 pin hoặc đèn trần chiếu sáng. Nhìn nó trong bóng tối không ngăn được nó.
 Giữ khoảng cách hơn 1,2 m: nó vẫn giết được khi đứng yên, nhưng không với
-xuyên tường hoặc cửa đóng. Nhạc truy đuổi chỉ phát khi nó di chuyển,
-càng gần càng rõ và tắt khi nó dừng. Đèn gần nó nhấp nháy.
+xuyên tường hoặc cửa đóng. Nhạc truy đuổi bắt đầu khi nó di chuyển,
+càng gần càng rõ và phát thêm 2 giây sau khi nó dừng. Đèn gần nó nhấp nháy.
 Người chết được xem góc nhìn người khác (Space = người tiếp theo).
 
 Phím: WASD đi, Shift chạy, Ctrl ngồi (đi êm), Space nhảy, F đèn pin,

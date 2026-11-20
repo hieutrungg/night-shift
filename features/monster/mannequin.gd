@@ -25,6 +25,7 @@ const MOVING_MIN_SPEED: float = 0.5
 ## Wider than the camera's real view so it never moves at the edge of the screen.
 @export var seen_half_angle_deg: float = 60.0
 @export var seen_max_distance: float = 40.0
+@export_range(0.0, 10.0, 0.1) var music_stop_delay_sec: float = 2.0
 
 ## Set by the level while a round is running.
 var hunting: bool = false
@@ -44,6 +45,8 @@ var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var _seen_cos: float = 0.0
 var _last_position: Vector3 = Vector3.ZERO
 var _moving_for: float = 0.0
+var _was_moving: bool = false
+var _music_tail_left: float = 0.0
 var _music_on: bool = false
 
 @onready var _agent: NavigationAgent3D = $NavigationAgent3D
@@ -68,14 +71,22 @@ func _process(delta: float) -> void:
 	var moved := global_position - _last_position
 	_last_position = global_position
 	moved.y = 0.0
-	if delta > 0.0 and moved.length() / delta > MOVING_MIN_SPEED:
+	var observed_movement := delta > 0.0 and moved.length() / delta > MOVING_MIN_SPEED
+	if observed_movement:
 		_moving_for = MOVING_HOLD_SEC
+		_music_tail_left = music_stop_delay_sec
 	else:
 		_moving_for = maxf(_moving_for - delta, 0.0)
-	if is_moving() != _music_on:
-		_music_on = is_moving()
+		_music_tail_left = maxf(_music_tail_left - delta, 0.0)
+	# Poses follow movement starts even if the music is still playing its tail.
+	var moving := is_moving()
+	if moving and not _was_moving:
+		_pick_new_pose()
+	_was_moving = moving
+	var should_play := observed_movement or _music_tail_left > 0.0
+	if should_play != _music_on:
+		_music_on = should_play
 		if _music_on:
-			_pick_new_pose()
 			_music.play()
 		else:
 			_music.stop()
