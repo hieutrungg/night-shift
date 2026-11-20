@@ -70,6 +70,11 @@ func _run() -> void:
 	if monster != null:
 		monster.asleep_for = INF
 	_check(player.is_on_floor(), "player stands on the ground")
+	_check(trip.van.distance_to(player.global_position) <= GameConfig.INTERACT_MAX_DISTANCE,
+		"getting off on arrival leaves you beside the truck")
+	# Beside the truck the building wall is close ahead: walk tests need room.
+	_teleport(player, level.get_player_spawns()[0])
+	await _physics_frames(5)
 	_check(level.get_player_spawns().size() == GameConfig.MAX_PLAYERS, "one spawn point per max player")
 	_check(level.get_doors().size() == 17, "17 doors built (got %d)" % level.get_doors().size())
 	var loot_count := level.get_item_spawns().size() + level.get_bulky_spawns().size()

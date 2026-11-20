@@ -60,7 +60,7 @@ func _ready() -> void:
 	player._unhandled_input(board_event)
 	trip._check_arrival_complete()
 	await _frames(FRAMES_TO_SETTLE)
-	_check(round_manager.is_playing() and player.seat_index < 0 and player.global_position.distance_to(level.get_player_spawns()[0]) < 0.3, "manual exit starts round at P")
+	_check(round_manager.is_playing() and player.seat_index < 0 and trip.van.distance_to(player.global_position) <= GameConfig.INTERACT_MAX_DISTANCE, "manual exit on arrival leaves you beside the truck")
 	_check(not own_steps.boarded, "footsteps are restored after disembarking")
 	player.global_position = Vector3.ZERO
 	trip._try_board(1)
@@ -153,7 +153,7 @@ func _check_driver_and_timeout() -> void:
 	trip.van.position = trip.parked_position
 	trip.van.rotation.y = 0.0
 	trip._process(GameConfig.ARRIVAL_SEC + GameConfig.AUTO_DISEMBARK_SEC)
-	_check(level.get_round().is_playing() and level.get_player().seat_index < 0 and level.get_player().global_position.distance_to(level.get_player_spawns()[0]) < 0.3, "automatic disembark starts play at P")
+	_check(level.get_round().is_playing() and level.get_player().seat_index < 0 and trip.van.distance_to(level.get_player().global_position) <= GameConfig.INTERACT_MAX_DISTANCE, "automatic disembark leaves you beside the truck")
 	for peer_id: int in [2, 3]:
 		Net.players[peer_id] = "Player%d" % peer_id
 		var other := PLAYER.instantiate() as Player

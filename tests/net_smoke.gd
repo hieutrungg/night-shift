@@ -256,8 +256,9 @@ func _run_client_round(level: GreyboxLevel, me: Player, item: Item, i_won: bool)
 		_teleport(me, van.approach_point())
 		await _seconds(POSITION_SETTLE_SEC)
 		van.request_deposit()
+	# The host tops up the quota right after the deposit, so only a minimum holds.
 	var deposited := await _wait_until(
-		func() -> bool: return level.get_item(CONTEST_ITEM) == null and round_manager.collected == value, 15.0)
+		func() -> bool: return level.get_item(CONTEST_ITEM) == null and round_manager.collected >= value, 15.0)
 	_check(deposited and me.held_item == null, "deposit seen on this peer (+%d)" % value)
 	await _run_client_departure(level, me)
 	await _check_victim(level)

@@ -133,9 +133,10 @@ func _disembark(peer_id: int) -> void:
 				break
 	_boarding_order.erase(peer_id)
 	_sync_seats.rpc(seats, driver_id)
-	# Getting off mid-round puts you right beside the truck; on arrival the
-	# player spawns (P) are used so the team lines up near the entrance.
-	_place_on_ground.rpc(peer_id, index, round_manager.phase == RoundManager.Phase.PLAYING)
+	# Always right beside the truck, each seat at its own spot. The host
+	# works it out, since a client's truck may still be finishing its drive.
+	var offset := (float(index) - float(GameConfig.MAX_PLAYERS - 1) * 0.5) * DISEMBARK_SPACING
+	_place_on_ground.rpc(peer_id, van.approach_point() + Vector3(offset, 0.0, 0.0))
 
 
 @rpc("authority", "call_local", "reliable")
@@ -151,16 +152,11 @@ func _sync_seats(new_seats: Array[int], new_driver: int) -> void:
 
 
 @rpc("authority", "call_local", "reliable")
-func _place_on_ground(peer_id: int, index: int, beside_truck: bool) -> void:
+func _place_on_ground(peer_id: int, spot: Vector3) -> void:
 	var player := Player.find_by_peer(get_tree(), peer_id)
 	if player == null or not player.is_local():
 		return
-	if beside_truck:
-		var offset := (float(index) - float(GameConfig.MAX_PLAYERS - 1) * 0.5) * DISEMBARK_SPACING
-		player.global_position = van.approach_point() + Vector3(offset, 0.0, 0.0)
-	else:
-		var spawns := level.get_player_spawns()
-		player.global_position = spawns[index % spawns.size()]
+	player.global_position = spot
 
 
 @rpc("any_peer", "call_local", "reliable")

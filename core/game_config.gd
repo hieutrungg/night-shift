@@ -11,7 +11,7 @@ const DEFAULT_PORT: int = 7777
 
 ## Players must run the same build: the host refuses a different version.
 ## Bump this every time a new build is shared with friends.
-const GAME_VERSION: String = "0.5.0"
+const GAME_VERSION: String = "0.5.1"
 
 ## How far (m, from the player's feet) the host accepts a door or item request.
 ## Longer than the interact ray to absorb network lag.
