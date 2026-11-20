@@ -31,6 +31,13 @@ var hunting: bool = false
 var asleep_for: float = GameConfig.MONSTER_WAKE_DELAY_SEC
 ## Host's latest answer to "does any living player see me?".
 var is_seen: bool = false
+## Synced: the host picks a new pose each time it starts moving, so it has
+## changed when you look back.
+var pose_index: int = 0:
+	set(value):
+		pose_index = value
+		if is_node_ready():
+			_body.set_pose(value)
 
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var _seen_cos: float = 0.0
@@ -41,6 +48,7 @@ var _scrape_on: bool = false
 @onready var _agent: NavigationAgent3D = $NavigationAgent3D
 @onready var _scrape: AudioStreamPlayer3D = $Scrape
 @onready var _creak: AudioStreamPlayer3D = $Creak
+@onready var _body: MannequinBody = $Body
 
 
 func _ready() -> void:
@@ -49,6 +57,8 @@ func _ready() -> void:
 	collision_mask = GameConfig.LAYER_WORLD
 	_scrape.stream = Sfx.mannequin_scrape()
 	_creak.stream = Sfx.mannequin_creak()
+	# A client may receive the pose before this node is ready.
+	_body.set_pose(pose_index)
 	_last_position = global_position
 	if not multiplayer.is_server():
 		set_physics_process(false)
@@ -67,6 +77,7 @@ func _process(delta: float) -> void:
 		_scrape_on = is_moving()
 		if _scrape_on:
 			_creak.play()
+			_pick_new_pose()
 			_scrape.play()
 		else:
 			_scrape.stop()
@@ -95,6 +106,13 @@ func is_awake() -> bool:
 ## True on every peer while it is visibly moving (drives sound and light flicker).
 func is_moving() -> bool:
 	return _moving_for > 0.0
+
+
+func _pick_new_pose() -> void:
+	if not multiplayer.is_server():
+		return
+	var count := MannequinBody.pose_count()
+	pose_index = (pose_index + 1 + randi() % (count - 1)) % count
 
 
 func _chase() -> void:

@@ -1,24 +1,11 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://features/monster/mannequin.gd" id="1_mannequin"]
+[ext_resource type="Script" path="res://features/monster/mannequin_body.gd" id="2_body"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.25
 height = 1.9
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_skin"]
-albedo_color = Color(0.86, 0.8, 0.7, 1)
-roughness = 0.35
-
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_body"]
-material = SubResource("StandardMaterial3D_skin")
-radius = 0.22
-height = 1.55
-
-[sub_resource type="SphereMesh" id="SphereMesh_head"]
-material = SubResource("StandardMaterial3D_skin")
-radius = 0.14
-height = 0.3
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_mannequin"]
 properties/0/path = NodePath(".:position")
@@ -27,6 +14,9 @@ properties/0/replication_mode = 1
 properties/1/path = NodePath(".:rotation")
 properties/1/spawn = true
 properties/1/replication_mode = 1
+properties/2/path = NodePath(".:pose_index")
+properties/2/spawn = true
+properties/2/replication_mode = 2
 
 [node name="Mannequin" type="CharacterBody3D"]
 script = ExtResource("1_mannequin")
@@ -35,13 +25,9 @@ script = ExtResource("1_mannequin")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)
 shape = SubResource("CapsuleShape3D_body")
 
-[node name="Body" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.78, 0)
-mesh = SubResource("CapsuleMesh_body")
-
-[node name="Head" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.72, 0)
-mesh = SubResource("SphereMesh_head")
+[node name="Body" type="Node3D" parent="."]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
+script = ExtResource("2_body")
 
 [node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
 path_desired_distance = 0.5

@@ -35,6 +35,19 @@ const NAV_AGENT_RADIUS: float = 0.25
 const NAV_AGENT_HEIGHT: float = 2.0
 const NAV_MAX_CLIMB: float = 0.25
 const AMBIENCE_VOLUME_DB: float = -10.0
+## ambientCG textures (CC0) and how many metres one repeat of each covers.
+const TEXTURE_DIR: String = "res://assets/textures/ambientcg/"
+const WALL_TEXTURE: String = "Plaster007"
+const WALL_TILE_M: float = 2.0
+const FLOOR_TEXTURE: String = "Tiles140"
+const FLOOR_TILE_M: float = 2.0
+const CEILING_TEXTURE: String = "OfficeCeiling001"
+const CEILING_TILE_M: float = 2.0
+const GROUND_TEXTURE: String = "Asphalt031"
+const GROUND_TILE_M: float = 4.0
+## Indoor floor is a visual layer just above the ground collider.
+const FLOOR_LIFT: float = 0.005
+const FLOOR_THICKNESS: float = 0.01
 
 ## 0 picks new loot every round; any other value repeats the same loot.
 @export var item_seed: int = 0
@@ -65,6 +78,7 @@ var _geometry: Node3D
 var _wall_material: StandardMaterial3D
 var _ceiling_material: StandardMaterial3D
 var _ground_material: StandardMaterial3D
+var _floor_material: StandardMaterial3D
 var _van_material: StandardMaterial3D
 
 
@@ -231,9 +245,10 @@ func _is_layout_valid() -> bool:
 
 
 func _create_materials() -> void:
-	_wall_material = _make_material(Color(0.55, 0.53, 0.48))
-	_ceiling_material = _make_material(Color(0.35, 0.35, 0.35))
-	_ground_material = _make_material(Color(0.18, 0.19, 0.17))
+	_wall_material = _make_textured_material(WALL_TEXTURE, WALL_TILE_M, Color(0.85, 0.84, 0.78))
+	_ceiling_material = _make_textured_material(CEILING_TEXTURE, CEILING_TILE_M, Color(0.8, 0.8, 0.8))
+	_floor_material = _make_textured_material(FLOOR_TEXTURE, FLOOR_TILE_M, Color.WHITE)
+	_ground_material = _make_textured_material(GROUND_TEXTURE, GROUND_TILE_M, Color(0.8, 0.8, 0.8))
 	_van_material = _make_material(Color(0.8, 0.8, 0.82))
 
 
@@ -241,6 +256,22 @@ func _make_material(color: Color) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
 	material.roughness = 0.95
+	return material
+
+
+## World-space triplanar mapping: merged boxes of any size get the same texture
+## scale, with no stretched UVs.
+func _make_textured_material(asset_id: String, metres_per_tile: float, tint: Color) -> StandardMaterial3D:
+	var base := TEXTURE_DIR + asset_id + "/" + asset_id + "_1K-JPG_"
+	var material := StandardMaterial3D.new()
+	material.albedo_color = tint
+	material.albedo_texture = load(base + "Color.jpg") as Texture2D
+	material.normal_enabled = true
+	material.normal_texture = load(base + "NormalGL.jpg") as Texture2D
+	material.roughness_texture = load(base + "Roughness.jpg") as Texture2D
+	material.uv1_triplanar = true
+	material.uv1_world_triplanar = true
+	material.uv1_scale = Vector3.ONE / metres_per_tile
 	return material
 
 
@@ -290,6 +321,8 @@ func _add_run(kind: RunKind, row: int, first_col: int, last_col: int) -> void:
 		RunKind.INDOOR:
 			_add_block(Vector3(center_x, WALL_HEIGHT + CEILING_THICKNESS * 0.5, center_z),
 				Vector3(length, CEILING_THICKNESS, CELL), _ceiling_material)
+			_add_visual(Vector3(center_x, FLOOR_LIFT, center_z),
+				Vector3(length, FLOOR_THICKNESS, CELL), _floor_material)
 		RunKind.OUTDOOR:
 			pass
 
@@ -397,6 +430,17 @@ func _add_block(center: Vector3, size: Vector3, material: StandardMaterial3D) ->
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.mesh = mesh
 	body.add_child(mesh_instance)
+
+
+## Mesh only, no collision (e.g. the indoor floor layer).
+func _add_visual(center: Vector3, size: Vector3, material: StandardMaterial3D) -> void:
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	mesh.material = material
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.mesh = mesh
+	mesh_instance.position = center
+	_geometry.add_child(mesh_instance)
 
 
 func _add_collider(center: Vector3, size: Vector3) -> StaticBody3D:

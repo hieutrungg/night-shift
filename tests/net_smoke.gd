@@ -28,6 +28,8 @@ const VICTIM: String = "C3"
 const WINNER_HOLD_SEC: float = 4.0
 ## Frames to let audio and nodes shut down before quitting (avoids exit leaks).
 const SHUTDOWN_FRAMES: int = 30
+## The host sets this mannequin pose; clients must see it.
+const SYNC_POSE: int = 2
 ## Items spawned by greybox_01 at the start of a round.
 const ITEM_COUNT: int = 15
 ## Lets clients check the result before the host starts the next round.
@@ -87,6 +89,7 @@ func _run_host() -> void:
 	_check(monster != null, "mannequin spawned on the host")
 	if monster != null:
 		monster.asleep_for = INF  # This test is about sync, not the chase.
+		monster.pose_index = SYNC_POSE
 	var moved := await _wait_until(_all_clients_moved, 15.0)
 	_check(moved, "every client's movement reached the host")
 	await _run_host_contest()
@@ -208,6 +211,9 @@ func _run_client_round(level: GreyboxLevel, me: Player, item: Item, i_won: bool)
 
 func _check_victim(level: GreyboxLevel) -> void:
 	_check(level.get_monster() != null, "mannequin spawned on this peer")
+	var monster := level.get_monster()
+	var posed := await _wait_until(func() -> bool: return monster != null and monster.pose_index == SYNC_POSE, 10.0)
+	_check(posed, "mannequin pose synced from the host")
 	var victim := Player.find_by_peer(get_tree(), _peer_id_of(VICTIM))
 	if victim == null:
 		_check(false, "victim player exists")

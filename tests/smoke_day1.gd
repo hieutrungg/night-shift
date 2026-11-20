@@ -196,6 +196,7 @@ func _check_monster(level: GreyboxLevel, player: Player) -> void:
 	_check(monster != null, "mannequin spawned")
 	if monster == null:
 		return
+	_check_mannequin_body(monster)
 	var round_manager := level.get_round()
 	var start := monster.global_position
 	# Same room, three metres away, looking straight at it (camera faces -Z).
@@ -230,6 +231,20 @@ func _check_monster(level: GreyboxLevel, player: Player) -> void:
 		"round ends as 'everyone died'")
 	_check(not level.get_van().accepting and not monster.is_awake(), "van closes and the mannequin stops")
 	await _check_dead_requests(level, player, door)
+
+
+func _check_mannequin_body(monster: Mannequin) -> void:
+	var skeleton := monster.find_child("Skeleton3D", true, false) as Skeleton3D
+	_check(skeleton != null, "mannequin uses the Quaternius model")
+	if skeleton == null:
+		return
+	var arm := skeleton.find_bone("upperarm_l")
+	var before := skeleton.get_bone_pose_rotation(arm)
+	var old_pose := monster.pose_index
+	monster.pose_index = (old_pose + 1) % MannequinBody.pose_count()
+	var changed := not skeleton.get_bone_pose_rotation(arm).is_equal_approx(before)
+	monster.pose_index = old_pose
+	_check(changed, "changing pose moves the arms")
 
 
 ## A dead player's requests must be refused by the host, not just by its input.
