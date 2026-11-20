@@ -13,6 +13,7 @@ const MENU_SCENE_PATH: String = "res://ui/main_menu/main_menu.tscn"
 const MAX_NAME_LENGTH: int = 16
 ## Lets the rejection message reach the peer before it is disconnected.
 const KICK_DELAY_SEC: float = 0.5
+const LOADING_SCREEN_FRAMES: int = 2
 ## A refused client gives up on its own if the host never kicks it.
 const REJECT_FALLBACK_SEC: float = 3.0
 
@@ -30,6 +31,7 @@ var game_version: String = GameConfig.GAME_VERSION
 var _loaded_peers: Array[int] = []
 ## Reason the host gave for refusing us, while we wait to be disconnected.
 var _pending_rejection: String = ""
+var _loading_screen: LoadingScreen = null
 
 
 func _ready() -> void:
@@ -113,6 +115,24 @@ func restart_match() -> bool:
 	return true
 
 
+## Lives on the root so it survives the scene change; the level hides it
+## once this machine's own player exists.
+func show_loading_screen() -> void:
+	if _loading_screen == null:
+		_loading_screen = LoadingScreen.new()
+		get_tree().root.add_child.call_deferred(_loading_screen)
+
+
+func hide_loading_screen() -> void:
+	if _loading_screen != null:
+		_loading_screen.queue_free()
+		_loading_screen = null
+
+
+func is_loading_screen_shown() -> bool:
+	return _loading_screen != null
+
+
 ## Called by the level once it is ready on this peer. The host spawns players
 ## only after every peer reported, so no spawn message is lost.
 func report_level_loaded() -> void:
@@ -127,7 +147,12 @@ func _begin_game() -> void:
 	get_tree().paused = false
 	in_game = true
 	_loaded_peers.clear()
-	get_tree().change_scene_to_file(LEVEL_SCENE_PATH)
+	show_loading_screen()
+	# Loading the level blocks the window, so let the loading screen draw first.
+	for _frame in LOADING_SCREEN_FRAMES:
+		await get_tree().process_frame
+	if in_game:
+		get_tree().change_scene_to_file(LEVEL_SCENE_PATH)
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -290,6 +315,7 @@ func _close_peer() -> void:
 	players.clear()
 	_loaded_peers.clear()
 	_pending_rejection = ""
+	hide_loading_screen()
 	in_game = false
 	is_solo = false
 

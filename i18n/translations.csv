@@ -79,3 +79,4 @@ ROUND_REASON_ALL_DEAD,Everyone died.,Cả đội đã chết.
 UI_SOLO,Play solo,Chơi một mình
 UI_WITH_FRIENDS,With friends ({min}–{max} players):,Chơi cùng bạn bè ({min}–{max} người):
 UI_PAUSED,Paused,Tạm dừng
+UI_LOADING,"Loading, waiting for everyone...","Đang tải, chờ mọi người..."

@@ -6,8 +6,8 @@ extends Node
 
 const ADDRESS: String = "127.0.0.1"
 const PORT: int = 17778
-## Seconds after the level loads: riding in, just after getting off, later.
-const SHOT_TIMES: Array[float] = [6.0, 16.0, 24.0]
+## Seconds after the level loads: still loading, riding in, just after getting off.
+const SHOT_TIMES: Array[float] = [0.0, 6.0, 16.0]
 const GIVE_UP_SEC: float = 40.0
 
 var _role: String = ""
@@ -45,7 +45,7 @@ func _ready() -> void:
 	for shot_time: float in SHOT_TIMES:
 		await get_tree().create_timer(shot_time - elapsed).timeout
 		elapsed = shot_time
-		_shoot("%s_%02d.png" % [_out, int(shot_time)])
+		_shoot("%s_%02d.png" % [_out, roundi(shot_time)])
 	get_tree().quit()
 
 

@@ -90,6 +90,7 @@ func _run_host() -> void:
 	_check(Net.start_game(), "match started")
 	var spawned := await _wait_until(func() -> bool: return _level_players().size() == GameConfig.MAX_PLAYERS, 30.0)
 	_check(spawned, "host sees %d players (has %d)" % [GameConfig.MAX_PLAYERS, _level_players().size()])
+	_check(await _wait_until(func() -> bool: return not Net.is_loading_screen_shown(), 10.0), "host loading screen clears once seated")
 	var arrival := await _wait_until(_arrival_synced, 10.0)
 	_check(arrival, "host sees all players seated during arrival")
 	var engine_started := await _wait_until(_truck_engine_playing, 5.0)
@@ -188,6 +189,7 @@ func _run_client() -> void:
 	var level := get_tree().current_scene as GreyboxLevel
 	var me := level.get_player() if level != null else null
 	_check(me != null and me.is_multiplayer_authority(), "client controls its own player")
+	_check(await _wait_until(func() -> bool: return not Net.is_loading_screen_shown(), 10.0), "loading screen clears once we are seated")
 	if me == null:
 		return
 	var arrival := await _wait_until(_arrival_synced, 10.0)

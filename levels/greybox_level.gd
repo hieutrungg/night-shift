@@ -28,6 +28,8 @@ const VAN_SCENE: PackedScene = preload("res://features/round/van.tscn")
 const MONSTER_SCENE: PackedScene = preload("res://features/monster/mannequin.tscn")
 ## Mannequins start slightly above the floor and settle with gravity.
 const MONSTER_SPAWN_LIFT: float = 0.1
+## Longest the loading screen waits for the host to seat this player.
+const SEATING_TIMEOUT_SEC: float = 10.0
 const RESTART_FLUSH_FRAMES: int = 2
 ## Time for in-flight player movement packets to land before despawning.
 const RESTART_SYNC_STOP_SEC: float = 0.25
@@ -773,6 +775,22 @@ func _on_player_entered(node: Node) -> void:
 		await player.ready
 	_hud.bind_player(player)
 	_hud.bind_round(_round)
+	await _wait_until_seated(player)
+	Net.hide_loading_screen()
+
+
+## A new player stands at the map origin until the host seats everyone in the
+## truck; keep the loading screen up until then (or give up after a while).
+## The level may be unloaded meanwhile, so every wait checks the tree again.
+func _wait_until_seated(player: Player) -> void:
+	var waited := 0.0
+	while (is_inside_tree() and is_instance_valid(player) and player.seat_index < 0
+			and _round.phase == RoundManager.Phase.WAITING and waited < SEATING_TIMEOUT_SEC):
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	# One physics step moves the player onto the seat before the screen clears.
+	if is_inside_tree():
+		await get_tree().physics_frame
 
 
 ## Host only: walkable areas for the monster, baked from the static geometry.
