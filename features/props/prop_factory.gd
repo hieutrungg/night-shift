@@ -64,6 +64,8 @@ static var _weathered: Dictionary[int, BaseMaterial3D] = {}
 
 ## `pose` is only used by the mannequin decoy.
 static func create(id: String, pose: int = 0) -> Node3D:
+	if ExteriorProps.SIZES.has(id):
+		return ExteriorProps.create(id)
 	if id == MANNEQUIN:
 		return _create_mannequin(pose)
 	if id == "streetLamp":
@@ -103,12 +105,15 @@ static func weather(model: Node3D) -> void:
 
 ## Drops cached materials and sizes (the level calls this when it unloads).
 static func clear_cache() -> void:
+	ExteriorProps.clear_cache()
 	_weathered.clear()
 	_bounds.clear()
 
 
 ## Size of the prop before turning (x = width, y = height, z = depth).
 static func size_of(id: String) -> Vector3:
+	if ExteriorProps.SIZES.has(id):
+		return ExteriorProps.SIZES[id]
 	if id == MANNEQUIN:
 		return MANNEQUIN_SIZE
 	return PROCEDURAL[id] if PROCEDURAL.has(id) else bounds(id).size

@@ -1,4 +1,5 @@
 keys,en,vi
+WORLD_SECURITY_SIGN,SECURITY,BẢO VỆ
 UI_GAME_TITLE,Night Shift,Ca Trực Đêm
 HUD_CONTROLS_HINT,"WASD: move · Shift: sprint · Ctrl: crouch · Space: jump · F: flashlight · E: use · G: drop · Esc: mouse","WASD: di chuyển · Shift: chạy · Ctrl: ngồi · Space: nhảy · F: đèn pin · E: dùng · G: thả · Esc: chuột"
 HUD_OPEN_DOOR,[E] Open door,[E] Mở cửa

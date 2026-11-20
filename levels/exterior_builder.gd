@@ -35,6 +35,17 @@ const FENCE_RAIL_SIZE: float = 0.05
 const MESH_CELL: float = 0.25
 const GATE_WIDTH: float = 5.0
 const GATE_POST_SIZE: float = 0.16
+const CURB_HEIGHT: float = 0.08
+const CURB_DEPTH: float = 0.16
+const SKYLINE_GAP: float = 42.0
+const WINDOW_GLOW: Color = Color(0.28, 0.24, 0.15)
+## x offset from the lot centre, extra distance behind the gate, width, height.
+const CITY_BLOCKS: Array[Vector4] = [
+	Vector4(-32.0, 6.0, 8.0, 14.0), Vector4(-23.0, 2.0, 5.0, 10.0),
+	Vector4(-16.0, 8.0, 7.0, 18.0), Vector4(-7.0, 5.0, 6.0, 12.0),
+	Vector4(2.0, 12.0, 8.0, 21.0), Vector4(12.0, 3.0, 6.0, 13.0),
+	Vector4(21.0, 9.0, 9.0, 17.0), Vector4(32.0, 4.0, 7.0, 11.0),
+]
 
 const FACES: Array[Vector2i] = [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]
 
@@ -66,6 +77,7 @@ func build(sign_key: String) -> void:
 				if _is_building(cell) and _is_outdoor(cell + face):
 					_dress_face(cell, face, sign_key)
 	_build_fence()
+	_build_skyline()
 
 
 func _create_materials(wall_material: BaseMaterial3D) -> void:
@@ -79,6 +91,7 @@ func _create_materials(wall_material: BaseMaterial3D) -> void:
 	_materials["wood"] = _plain(Color(0.28, 0.2, 0.13), 0.9, 0.0)
 	_materials["metal"] = _plain(Color(0.32, 0.33, 0.35), 0.55, 0.7)
 	_materials["mesh"] = _chain_link_material()
+	_materials["curb"] = _plain(Color(0.29, 0.29, 0.27), 0.95, 0.0)
 
 
 func _plain(colour: Color, roughness: float, metallic: float) -> StandardMaterial3D:
@@ -154,10 +167,22 @@ func _dress_face(cell: Vector2i, face: Vector2i, sign_key: String) -> void:
 			along + Vector3.UP * PLINTH_HEIGHT + normal.abs() * FACE_INSET, _materials["plinth"])
 	_visual_box(surface + normal * SIDEWALK_DEPTH * 0.5 + Vector3.UP * SIDEWALK_LIFT,
 		along + Vector3.UP * 0.01 + normal.abs() * SIDEWALK_DEPTH, _materials["concrete"])
+	_build_curb(cell, surface, normal, along)
 	if tile == "D":
 		_build_entrance(surface, normal, along, sign_key)
 	elif tile == "#" and _wants_window(cell, along):
 		_build_window(surface, normal, along)
+
+
+## Leave a three-cell flush crossing at each entrance.
+func _build_curb(cell: Vector2i, surface: Vector3, normal: Vector3, along: Vector3) -> void:
+	for offset in range(-1, 2):
+		var step := Vector2i(offset, 0) if along.x > 0.5 else Vector2i(0, offset)
+		var near := cell + step
+		if _is_inside(near) and _rows[near.y][near.x] == "D":
+			return
+	_visual_box(surface + normal * SIDEWALK_DEPTH + Vector3.UP * CURB_HEIGHT * 0.5,
+		along * 0.97 + Vector3.UP * CURB_HEIGHT + normal.abs() * CURB_DEPTH, _materials["curb"])
 
 
 func _wants_window(cell: Vector2i, along: Vector3) -> bool:
@@ -307,3 +332,48 @@ func _visual_box(centre: Vector3, size: Vector3, material: BaseMaterial3D) -> vo
 	mesh.mesh = box_mesh
 	mesh.position = centre
 	_parent.add_child(mesh)
+
+
+## Non-solid background buildings and one instanced mesh for all distant windows.
+func _build_skyline() -> void:
+	var centre_x := _rows[0].length() * 0.5
+	var south := float(_rows.size()) + SKYLINE_GAP
+	var concrete := _plain(Color(0.025, 0.033, 0.045), 1.0, 0.0)
+	var windows: Array[Transform3D] = []
+	for index in CITY_BLOCKS.size():
+		var block := CITY_BLOCKS[index]
+		var at := Vector3(centre_x + block.x, block.w * 0.5 - 1.0, south + block.y)
+		_visual_box(at, Vector3(block.z, block.w, 7.0), concrete)
+		if index % 2 == 0:
+			_visual_box(at + Vector3(0.0, block.w * 0.5 + 0.5, 0.0),
+				Vector3(block.z * 0.35, 1.0, 3.0), concrete)
+		_city_windows(windows, at, block, index)
+	var glow := _plain(WINDOW_GLOW, 1.0, 0.0)
+	glow.emission_enabled = true
+	glow.emission = WINDOW_GLOW
+	glow.emission_energy_multiplier = 0.55
+	var pane := BoxMesh.new()
+	pane.size = Vector3(0.4, 0.65, 0.02)
+	pane.material = glow
+	var instances := MultiMesh.new()
+	instances.transform_format = MultiMesh.TRANSFORM_3D
+	instances.mesh = pane
+	instances.instance_count = windows.size()
+	for index in windows.size():
+		instances.set_instance_transform(index, windows[index])
+	var mesh := MultiMeshInstance3D.new()
+	mesh.name = "DistantWindows"
+	mesh.multimesh = instances
+	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_parent.add_child(mesh)
+
+
+func _city_windows(windows: Array[Transform3D], at: Vector3, block: Vector4, seed_index: int) -> void:
+	for floor_index in int(block.w / 2.3):
+		for column in int(block.z / 1.4):
+			# Sparse, fixed occupancy, identical on every machine.
+			if (floor_index * 7 + column * 11 + seed_index * 3) % 9 > 1:
+				continue
+			var position := Vector3(at.x - block.z * 0.5 + 0.8 + column * 1.4,
+				1.6 + floor_index * 2.3, at.z - 3.51)
+			windows.append(Transform3D(Basis.IDENTITY, position))

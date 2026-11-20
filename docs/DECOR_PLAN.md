@@ -11,6 +11,15 @@ Thứ tự làm (theo yêu cầu): **cửa → xe → nội thất từng phòng
 > Khác so với kế hoạch: "Lotta tra Como" thực tế là **tủ ngăn kéo thấp** (2,06 × 0,87 m), không phải tủ cao, nên tủ cao trong phòng tủ đồ dùng `bookcaseClosedDoors` của Kenney. Old Door là một mesh liền (khung + cánh mở hé), được tách và xoay cánh về vị trí đóng bằng code (`features/doors/door_model.gd`). Đồ Kenney được làm xám/tối cho hợp không khí. Đo được ~270–290 FPS (1280×720, Radeon 880M), không cần cắt giảm.
 > Dữ liệu đặt đồ: `levels/greybox_01/greybox_01_decor.gd`. Test tự động kiểm tra luật đặt đồ và đường đi tới mọi ô đồ nhặt.
 
+### Ngoại cảnh đợt 2
+
+- Bó vỉa có khe đi ngang rộng 3 ô tại cửa chính; mặt đường thêm 6 vũng nước, 2 vết dầu và 3 vết nứt. Các chi tiết mặt đường là mesh mỏng, không có va chạm; nước dùng shader với mép mờ và ánh trời rất nhẹ ở góc nhìn thấp.
+- Chòi bảo vệ cạnh cổng, ngoài lối giữa; biển dùng khóa `WORLD_SECURITY_SIGN` (en/vi). Đèn bên trong được `_register_decor_lights()` đưa qua `_register_light()`, cùng hệ thống nhấp nháy và kiểm tra ánh sáng của ma-nơ-canh.
+- Dumpster và 2 chồng pallet dựng từ khối hình học cạnh tường. Bóng nhà xa sau hàng rào không có va chạm; các ô cửa phát sáng được gom trong một `MultiMesh`, không thêm đèn chiếu rộng vào bãi xe.
+- Sương mỏng và lạnh hơn, giữ nguyên năng lượng ánh sáng môi trường và các đèn đường để khoảng giữa các cột đèn vẫn tối. Không thêm asset bên thứ ba, không sửa `project.godot` hay `greybox_level.gd`.
+- `tests/smoke_day1.tscn` kiểm tra cả đường tới ô đồ cồng kềnh, lối giữa ra cổng, điểm chất đồ trong tầm tương tác và mọi chỗ spawn. `tests/exterior_benchmark.tscn` đo renderer Forward+ thật ở 1280×720, VSync tắt, HUD và đèn pin bật, 5 góc nhìn; ảnh được chụp với HUD và đèn pin tắt để kiểm tra ánh sáng ngoại cảnh. Chạy bằng `godot --path . res://tests/exterior_benchmark.tscn -- --output-dir=C:/tmp/night-shift-exterior`.
+- Kết quả đợt 2 trên Radeon 880M: 311,3 / 403,0 / 293,1 / 317,2 / 278,0 FPS ở 5 góc nhìn, mỗi góc lấy mẫu 6 giây sau 4 giây làm nóng; p95 thời gian khung hình 3,27–4,36 ms. Import, smoke map, solo, mannequin và network 5 tiến trình đều đạt, stderr rỗng. Chưa chơi thử qua Radmin hoặc đo trên GPU khác.
+
 ---
 
 ## 1. Asset

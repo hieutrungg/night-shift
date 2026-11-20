@@ -200,6 +200,25 @@ const ENTRIES: Array[Array] = [
 	["streetLamp", 24.0, 34.6, 180],
 	["cone", 16.0, 34.6, 0],
 	["cone", 21.0, 34.6, 0],
+
+	# Gate watch and the maintenance corner, outside the central escape lane.
+	["guardBooth", 14.3, 32.5, 0],
+	["dumpster", 4.3, 23.2, 0],
+	["palletStack", 7.1, 23.0, 8],
+	["palletStack", 32.0, 22.9, -6],
+
+	# Thin, non-solid wet patches, oil and broken asphalt.
+	["puddle", 4.0, 26.1, -15],
+	["puddle", 29.3, 26.2, 18],
+	["puddle", 11.0, 33.0, -22],
+	["puddle", 22.5, 32.4, 35],
+	["puddle", 17.1, 27.1, -18],
+	["puddle", 20.3, 30.9, 24],
+	["oilStain", 3.3, 30.0, 10],
+	["oilStain", 25.4, 30.5, -10],
+	["asphaltCrack", 8.5, 25.7, 15],
+	["asphaltCrack", 25.3, 27.2, -12],
+	["asphaltCrack", 30.5, 34.1, 25],
 ]
 
 ## Painted stall dividers either side of the lane to the gate (x in metres).

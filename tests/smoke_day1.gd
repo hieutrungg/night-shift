@@ -134,6 +134,43 @@ func _check_exterior(level: GreyboxLevel) -> void:
 	_check(not space.intersect_ray(gate).is_empty(), "the gate is closed")
 	var side := PhysicsRayQueryParameters3D.create(Vector3(2.0, 1.0, 30.0), Vector3(-1.0, 1.0, 30.0))
 	_check(not space.intersect_ray(side).is_empty(), "the fence closes the side of the lot")
+	_check_exterior_routes(level)
+	var booth_lights := level.find_children("BoothLamp", "OmniLight3D", true, false)
+	_check(booth_lights.size() == 1 and booth_lights[0].is_in_group(MannequinSight.LIGHT_GROUP),
+		"guard booth lamp is registered for flicker and mannequin sight")
+	var decor := level.get_node(^"Navigation/Geometry/Decor") as Node3D
+	var ground_details_ok := true
+	for node in decor.get_children():
+		if node.name == &"Puddle" or node.name == &"OilStain" or node.name == &"AsphaltCrack":
+			ground_details_ok = ground_details_ok and node.find_children("*", "CollisionObject3D", true, false).is_empty()
+	_check(ground_details_ok, "ground puddles, oil and cracks have no collision")
+
+
+func _check_exterior_routes(level: GreyboxLevel) -> void:
+	var space := level.get_world_3d().direct_space_state
+	var clear_lane := true
+	for x: float in [17.3, 18.5, 19.7]:
+		var ray := PhysicsRayQueryParameters3D.create(Vector3(x, 0.9, 25.0), Vector3(x, 0.9, 35.0))
+		ray.collision_mask = GameConfig.LAYER_WORLD | GameConfig.LAYER_DOORS
+		clear_lane = clear_lane and space.intersect_ray(ray).is_empty()
+	_check(clear_lane, "central approach to the gate stays clear across its width")
+	var map := level.get_world_3d().navigation_map
+	var van := level.get_van()
+	# Players load from the truck side facing the central lane.
+	var loading_point := van.global_position + Vector3(-van.size.x * 0.5 - 1.0, 0.1, 0.0)
+	_check(van.distance_to(loading_point) <= 2.2, "reachable truck loading point is within the interaction ray")
+	var targets: Array[Vector3] = [Vector3(18.5, 0.1, 34.5), loading_point]
+	targets.append_array(level.get_player_spawns())
+	var unreachable: PackedStringArray = []
+	for target in targets:
+		var path := NavigationServer3D.map_get_path(map, Vector3(18.5, 0.1, 22.0), target, true)
+		if path.is_empty():
+			unreachable.append("%s: no path" % str(target))
+			continue
+		var end := path[path.size() - 1]
+		if Vector2(end.x - target.x, end.z - target.z).length() >= PATH_END_TOLERANCE:
+			unreachable.append("%s: path ends at %s" % [str(target), str(end)])
+	_check(unreachable.is_empty(), "entrance reaches gate, van and all player spawns %s" % str(unreachable))
 
 
 func _check_decor(level: GreyboxLevel) -> void:
@@ -159,7 +196,10 @@ func _check_decor(level: GreyboxLevel) -> void:
 	var map := level.get_world_3d().navigation_map
 	var start := level.get_player_spawns()[0]
 	var unreachable: PackedStringArray = []
-	for spawn in level.get_item_spawns():
+	var loot_spawns: Array[Vector3] = []
+	loot_spawns.append_array(level.get_item_spawns())
+	loot_spawns.append_array(level.get_bulky_spawns())
+	for spawn in loot_spawns:
 		var path := NavigationServer3D.map_get_path(map, start, spawn, true)
 		var end := path[path.size() - 1] if not path.is_empty() else start
 		if Vector2(end.x - spawn.x, end.z - spawn.z).length() > PATH_END_TOLERANCE:
