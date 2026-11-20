@@ -21,6 +21,8 @@ const GROUP: StringName = &"players"
 @export var max_look_pitch_deg: float = 85.0
 @export var drop_distance: float = 0.6
 @export var drop_push: float = 1.5
+## Walking speed while carrying bulky loot with both hands (no sprint, no jump).
+@export var bulky_carry_speed: float = 1.1
 
 var held_item: Item = null
 ## Set on every peer by the host (see GreyboxLevel.kill_player).
@@ -48,6 +50,7 @@ var _skip_next_mouse_motion: bool = true
 @onready var _flashlight: SpotLight3D = $Head/Camera3D/Flashlight
 @onready var _interact_ray: RayCast3D = $Head/Camera3D/InteractRay
 @onready var _hold_point: Marker3D = $Head/Camera3D/HoldPoint
+@onready var _bulky_hold_point: Marker3D = $Head/Camera3D/BulkyHoldPoint
 @onready var _nameplate: Label3D = $Nameplate
 @onready var _sync: MultiplayerSynchronizer = $Sync
 @onready var _footsteps: Footsteps = $Footsteps
@@ -61,6 +64,7 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
+	_flashlight.add_to_group(MannequinSight.LIGHT_GROUP)
 	_capsule = _collision.shape as CapsuleShape3D
 	_head_stand_y = _head.position.y
 	_interact_ray.add_exception(self)
@@ -165,8 +169,13 @@ func set_spectated(spectated: bool) -> void:
 	_nameplate.visible = not spectated and not is_local()
 
 
-func get_hold_point() -> Node3D:
-	return _hold_point
+## Bulky loot is held low in front with both hands; the rest in the right hand.
+func get_hold_point(bulky: bool = false) -> Node3D:
+	return _bulky_hold_point if bulky else _hold_point
+
+
+func is_carrying_bulky() -> bool:
+	return is_instance_valid(held_item) and held_item.data.bulky
 
 
 ## Called by Item on every peer once the host has decided who holds it.
@@ -224,7 +233,7 @@ func _look(relative: Vector2) -> void:
 func _apply_movement(delta: float) -> void:
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
-	elif Input.is_action_just_pressed(InputActions.JUMP) and not crouching:
+	elif Input.is_action_just_pressed(InputActions.JUMP) and not crouching and not is_carrying_bulky():
 		velocity.y = jump_velocity
 
 	var input_dir := Input.get_vector(
@@ -239,6 +248,8 @@ func _apply_movement(delta: float) -> void:
 
 
 func _current_speed() -> float:
+	if is_carrying_bulky():
+		return minf(bulky_carry_speed, crouch_speed) if crouching else bulky_carry_speed
 	if crouching:
 		return crouch_speed
 	if Input.is_action_pressed(InputActions.SPRINT):

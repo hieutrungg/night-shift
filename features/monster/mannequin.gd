@@ -1,6 +1,6 @@
 class_name Mannequin
 extends CharacterBody3D
-## The mannequin: moves only while no living player can see it, and kills a
+## The mannequin: moves unless a living player sees its illuminated body, and kills a
 ## player it reaches. Only the host runs this logic; clients show the position
 ## copied by the synchronizer.
 
@@ -12,6 +12,7 @@ const SAMPLE_HEIGHTS: Array[float] = [0.3, 1.0, 1.7]
 ## Stops chasing a target this close; the kill check takes over.
 const ARRIVE_DISTANCE: float = 0.05
 const MAX_KILL_HEIGHT_DIFF: float = 1.5
+const CATCH_HEIGHT: float = 1.0
 ## Remote positions arrive in steps; keep "moving" true briefly between them.
 const MOVING_HOLD_SEC: float = 0.25
 const MOVING_MIN_SPEED: float = 0.5
@@ -20,7 +21,7 @@ const MOVING_MIN_SPEED: float = 0.5
 @export var move_speed: float = 5.25
 ## Horizontal distance at which it opens a closed door in its way.
 @export var door_open_range: float = 1.2
-@export var kill_range: float = 1.0
+@export var kill_range: float = 1.2
 ## Wider than the camera's real view so it never moves at the edge of the screen.
 @export var seen_half_angle_deg: float = 60.0
 @export var seen_max_distance: float = 40.0
@@ -43,11 +44,10 @@ var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var _seen_cos: float = 0.0
 var _last_position: Vector3 = Vector3.ZERO
 var _moving_for: float = 0.0
-var _scrape_on: bool = false
+var _music_on: bool = false
 
 @onready var _agent: NavigationAgent3D = $NavigationAgent3D
-@onready var _scrape: AudioStreamPlayer3D = $Scrape
-@onready var _creak: AudioStreamPlayer3D = $Creak
+@onready var _music: AudioStreamPlayer3D = $Music
 @onready var _body: MannequinBody = $Body
 
 
@@ -55,8 +55,7 @@ func _ready() -> void:
 	_seen_cos = cos(deg_to_rad(seen_half_angle_deg))
 	# Pass through door panels (they would wedge it); _open_nearby_doors opens them.
 	collision_mask = GameConfig.LAYER_WORLD
-	_scrape.stream = Sfx.mannequin_scrape()
-	_creak.stream = Sfx.mannequin_creak()
+	_music.stream = Sfx.mannequin_music()
 	# A client may receive the pose before this node is ready.
 	_body.set_pose(pose_index)
 	_last_position = global_position
@@ -73,17 +72,18 @@ func _process(delta: float) -> void:
 		_moving_for = MOVING_HOLD_SEC
 	else:
 		_moving_for = maxf(_moving_for - delta, 0.0)
-	if is_moving() != _scrape_on:
-		_scrape_on = is_moving()
-		if _scrape_on:
-			_creak.play()
+	if is_moving() != _music_on:
+		_music_on = is_moving()
+		if _music_on:
 			_pick_new_pose()
-			_scrape.play()
+			_music.play()
 		else:
-			_scrape.stop()
+			_music.stop()
 
 
 func _physics_process(delta: float) -> void:
+	if not multiplayer.is_server():
+		return
 	velocity.x = 0.0
 	velocity.z = 0.0
 	velocity.y = 0.0 if is_on_floor() else velocity.y - _gravity * delta
@@ -96,6 +96,7 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	if can_move:
 		_open_nearby_doors()
+	if is_awake():
 		_catch_players()
 
 
@@ -160,17 +161,23 @@ func _is_seen_by_anyone() -> bool:
 	var exclude: Array[RID] = [get_rid()]
 	for player in players:
 		exclude.append(player.get_rid())
+	var lights := get_tree().get_nodes_in_group(MannequinSight.LIGHT_GROUP)
+	var space := get_world_3d().direct_space_state
+	var lit_points: Array[Vector3] = []
+	for height in SAMPLE_HEIGHTS:
+		var point := global_position + Vector3.UP * height
+		if MannequinSight.is_lit(point, lights, space, exclude):
+			lit_points.append(point)
 	for player in players:
-		if _is_seen_from(player.get_view_transform(), exclude):
+		if _is_seen_from(player.get_view_transform(), exclude, lit_points):
 			return true
 	return false
 
 
-func _is_seen_from(view: Transform3D, exclude: Array[RID]) -> bool:
+func _is_seen_from(view: Transform3D, exclude: Array[RID], points: Array[Vector3]) -> bool:
 	var forward := -view.basis.z
 	var space := get_world_3d().direct_space_state
-	for height in SAMPLE_HEIGHTS:
-		var point := global_position + Vector3.UP * height
+	for point in points:
 		var to_point := point - view.origin
 		var distance := to_point.length()
 		if distance > seen_max_distance or distance < 0.001:
@@ -196,10 +203,20 @@ func _open_nearby_doors() -> void:
 
 
 func _catch_players() -> void:
-	for player in _living_players():
+	if not multiplayer.is_server():
+		return
+	var players := _living_players()
+	var exclude: Array[RID] = [get_rid()]
+	for player in players:
+		exclude.append(player.get_rid())
+	var space := get_world_3d().direct_space_state
+	var from := global_position + Vector3.UP * CATCH_HEIGHT
+	for player in players:
 		var offset := player.global_position - global_position
 		if absf(offset.y) > MAX_KILL_HEIGHT_DIFF:
 			continue
 		offset.y = 0.0
-		if offset.length() <= kill_range:
+		var to := player.global_position + Vector3.UP * CATCH_HEIGHT
+		if offset.length() <= kill_range and MannequinSight.has_clear_ray(from, to, space,
+				exclude, GameConfig.LAYER_WORLD | GameConfig.LAYER_DOORS):
 			player_caught.emit(player.get_peer_id())

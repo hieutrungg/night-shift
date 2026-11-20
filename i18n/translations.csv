@@ -5,6 +5,7 @@ HUD_OPEN_DOOR,[E] Open door,[E] Mở cửa
 HUD_CLOSE_DOOR,[E] Close door,[E] Đóng cửa
 HUD_PICK_UP,[E] Pick up {item},[E] Nhặt {item}
 HUD_HOLDING,"Holding: {item} (${value}) · [G] Drop","Đang cầm: {item} (${value}) · [G] Thả"
+HUD_CARRYING_BULKY,"Carrying: {item} (${value}) · heavy, very slow · [G] Drop","Đang khiêng: {item} (${value}) · nặng, đi rất chậm · [G] Thả"
 ITEM_UNKNOWN,Unknown item,Món đồ lạ
 ITEM_RADIO,Old radio,Radio cũ
 ITEM_LAMP,Desk lamp,Đèn bàn
@@ -13,6 +14,8 @@ ITEM_TOASTER,Toaster,Máy nướng bánh mì
 ITEM_BLENDER,Blender,Máy xay sinh tố
 ITEM_SPEAKER,Speaker,Loa
 ITEM_BOOKS,Stack of books,Chồng sách
+ITEM_CRT_TV,Old CRT TV,TV đời cũ
+ITEM_MINI_FRIDGE,Mini fridge,Tủ lạnh mini
 UI_HOST,Host game,Tạo phòng
 UI_JOIN,Join,Vào phòng
 UI_QUIT,Quit,Thoát

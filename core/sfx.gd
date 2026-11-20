@@ -21,6 +21,9 @@ const CREAK_FILES: Array[String] = ["creak1", "creak2", "creak3"]
 ## Pitch spread for recorded variants (1.0 = none), so repeats sound different.
 const FOOTSTEP_PITCH_SPREAD: float = 1.08
 const DEFAULT_PITCH_SPREAD: float = 1.05
+const MANNEQUIN_MUSIC_SECONDS: float = 8.0
+const MANNEQUIN_NOTE_SECONDS: float = 0.5
+const MANNEQUIN_NOTES: Array[float] = [220.0, 233.0, 165.0, 208.0, 220.0, 311.0, 233.0, 165.0]
 
 static var _cache: Dictionary[StringName, AudioStream] = {}
 
@@ -71,8 +74,8 @@ static func death_sting() -> AudioStream:
 
 
 ## Looping.
-static func mannequin_scrape() -> AudioStream:
-	return _cached(&"mannequin_scrape", _make_mannequin_scrape)
+static func mannequin_music() -> AudioStream:
+	return _cached(&"mannequin_music", _make_mannequin_music)
 
 
 ## Looping.
@@ -159,19 +162,20 @@ static func _make_death_sting() -> AudioStreamWAV:
 	return _to_wav(samples, false)
 
 
-static func _make_mannequin_scrape() -> AudioStreamWAV:
-	var rng := _rng()
+static func _make_mannequin_music() -> AudioStreamWAV:
 	var samples := PackedFloat32Array()
-	# 1 s loop; the 4 Hz judder repeats a whole number of times.
-	samples.resize(MIX_RATE)
-	var low := 0.0
-	var band := 0.0
+	samples.resize(int(MANNEQUIN_MUSIC_SECONDS * MIX_RATE))
 	for i in samples.size():
 		var t := float(i) / MIX_RATE
-		low += (rng.randf_range(-1.0, 1.0) - low) * 0.35
-		band += (low - band) * 0.05
-		var judder := 0.55 + 0.45 * absf(sin(TAU * 2.0 * t))
-		samples[i] = (low - band) * judder * 1.6
+		var note_index := int(t / MANNEQUIN_NOTE_SECONDS) % MANNEQUIN_NOTES.size()
+		var note_time := fmod(t, MANNEQUIN_NOTE_SECONDS)
+		var envelope := pow(sin(PI * note_time / MANNEQUIN_NOTE_SECONDS), 2.0)
+		var frequency := MANNEQUIN_NOTES[note_index]
+		var strings := sin(TAU * frequency * note_time) + 0.3 * sin(TAU * frequency * 2.0 * note_time)
+		# Whole drone cycles and silent note boundaries keep the loop seamless.
+		var drone := sin(TAU * 55.0 * t) + 0.6 * sin(TAU * 58.0 * t)
+		var swell := 0.65 + 0.35 * sin(TAU * 0.25 * t)
+		samples[i] = strings * envelope * 0.3 + drone * swell * 0.18
 	return _to_wav(samples, true)
 
 

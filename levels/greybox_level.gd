@@ -8,7 +8,7 @@ extends Node3D
 ##   D  doorway with a door       L  indoor floor + ceiling light
 ##   i  indoor floor + item spawn ,  outdoor ground (no ceiling)
 ##   P  outdoor player spawn      V  van / drop-off area (placeholder)
-##   M  indoor floor + monster spawn
+##   M  indoor floor + monster spawn  B  indoor floor + bulky loot spawn
 
 enum RunKind { WALL, INDOOR, OUTDOOR }
 
@@ -17,7 +17,8 @@ const WALL_HEIGHT: float = 3.0
 const CEILING_THICKNESS: float = 0.2
 const DOOR_HEIGHT: float = 2.2
 const BOUNDARY_HEIGHT: float = 6.0
-const INDOOR_CHARS: String = ".DLiM"
+const INDOOR_CHARS: String = ".DLiMB"
+const OUTDOOR_CHARS: String = ",PV"
 
 const PLAYER_SCENE: PackedScene = preload("res://features/player/player.tscn")
 const DOOR_SCENE: PackedScene = preload("res://features/doors/door.tscn")
@@ -34,6 +35,8 @@ const NAV_AGENT_RADIUS: float = 0.25
 const NAV_AGENT_HEIGHT: float = 2.0
 const NAV_MAX_CLIMB: float = 0.25
 const AMBIENCE_VOLUME_DB: float = -10.0
+## Bulky loot is tall, so it starts higher above the floor before it settles.
+const BULKY_SPAWN_HEIGHT: float = 0.8
 ## ambientCG textures (CC0) and how many metres one repeat of each covers.
 const TEXTURE_DIR: String = "res://assets/textures/ambientcg/"
 const WALL_TEXTURE: String = "Plaster007"
@@ -71,6 +74,9 @@ var _player_spawns: Array[Vector3] = []
 var _item_spawns: Array[Vector3] = []
 var _van_cells: Array[Vector3] = []
 var _monster_spawns: Array[Vector3] = []
+var _bulky_spawns: Array[Vector3] = []
+## Steps from the nearest outdoor cell, per walkable cell (doors open away from it).
+var _depth: Dictionary[Vector2i, int] = {}
 ## Footprints of placed decor, for placement checks: [{"id": String, "rect": Rect2}].
 var _decor_footprints: Array[Dictionary] = []
 
@@ -151,6 +157,10 @@ func get_item_spawns() -> Array[Vector3]:
 	return _item_spawns
 
 
+func get_bulky_spawns() -> Array[Vector3]:
+	return _bulky_spawns
+
+
 func get_round() -> RoundManager:
 	return _round
 
@@ -171,7 +181,7 @@ func get_reserved_cells() -> Array[Vector2i]:
 	for row in _rows.size():
 		for col in _rows[row].length():
 			var cell := _rows[row][col]
-			if "iMP".contains(cell):
+			if "iMPB".contains(cell):
 				cells.append(Vector2i(col, row))
 			elif cell == "D":
 				for offset: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
@@ -179,6 +189,16 @@ func get_reserved_cells() -> Array[Vector2i]:
 					if not _is_wall(next.x, next.y) and _is_inside(next):
 						cells.append(next)
 	return cells
+
+
+## The layout character at a cell ("" outside the map).
+func get_layout_char(cell: Vector2i) -> String:
+	return _rows[cell.y][cell.x] if _is_inside(cell) else ""
+
+
+## Steps from the nearest outdoor cell (-1 for walls or unreachable cells).
+func get_cell_depth(cell: Vector2i) -> int:
+	return _depth.get(cell, -1)
 
 
 ## True when the cell is a wall (decor must not be inside one).
@@ -266,6 +286,11 @@ func _get_decor() -> Array[Array]:
 	return []
 
 
+## Override: kinds of bulky loot that can appear at B spawns.
+func _get_bulky_pool() -> Array[ItemData]:
+	return []
+
+
 ## Override: kinds of loot that can appear at item spawns.
 func _get_item_pool() -> Array[ItemData]:
 	return []
@@ -316,6 +341,7 @@ func _make_textured_material(asset_id: String, metres_per_tile: float, tint: Col
 func _build() -> void:
 	var width := _rows[0].length()
 	var depth := _rows.size()
+	_depth = _compute_depth()
 	var size := Vector3(width * CELL, 0.2, depth * CELL)
 	_add_block(Vector3(size.x * 0.5, -0.1, size.z * 0.5), size, _ground_material)
 	_add_boundary(width, depth)
@@ -380,6 +406,8 @@ func _build_cell(col: int, row: int, cell: String) -> void:
 			_van_cells.append(center)
 		"M":
 			_monster_spawns.append(center + Vector3.UP * 0.1)
+		"B":
+			_bulky_spawns.append(center + Vector3.UP * BULKY_SPAWN_HEIGHT)
 
 
 func _cell_center(col: int, row: int) -> Vector3:
@@ -398,13 +426,23 @@ func _add_door(col: int, row: int) -> void:
 	door.name = "Door_%d_%d" % [col, row]
 	var x0 := col * CELL
 	var z0 := row * CELL
+	# A positive swing opens towards `ahead`; `behind` is the other side.
+	var ahead: Vector2i
+	var behind: Vector2i
 	if _is_wall(col - 1, row) and _is_wall(col + 1, row):
-		# Walls left and right: the panel lies along X.
+		# Walls left and right: the panel lies along X and swings north.
 		door.position = Vector3(x0 + 0.05, 0.0, z0 + 0.5 * CELL)
+		ahead = Vector2i(col, row - 1)
+		behind = Vector2i(col, row + 1)
 	else:
-		# Walls above and below: turn the panel to lie along Z.
+		# Walls above and below: turn the panel to lie along Z; it swings east.
 		door.position = Vector3(x0 + 0.5 * CELL, 0.0, z0 + 0.05)
 		door.rotation.y = -PI * 0.5
+		ahead = Vector2i(col + 1, row)
+		behind = Vector2i(col - 1, row)
+	# Doors open inwards: into the side deeper inside the building.
+	var opens_ahead := get_cell_depth(ahead) >= get_cell_depth(behind)
+	door.open_angle_deg = absf(door.open_angle_deg) * (1.0 if opens_ahead else -1.0)
 	add_child(door)
 	_doors.append(door)
 	var lintel_height := WALL_HEIGHT - DOOR_HEIGHT
@@ -420,6 +458,7 @@ func _add_ceiling_light(center: Vector3) -> void:
 	light.omni_range = 6.0
 	light.shadow_enabled = true
 	add_child(light)
+	light.add_to_group(MannequinSight.LIGHT_GROUP)
 	_flicker.add_light(light)
 
 
@@ -568,6 +607,25 @@ func _spawn_all_items() -> int:
 			"kind": kind,
 			"position": _item_spawns[index],
 		})
+	total_value += _spawn_bulky_items(rng)
+	return total_value
+
+
+## Bulky loot comes after the normal loot, so item names stay the same on every peer.
+func _spawn_bulky_items(rng: RandomNumberGenerator) -> int:
+	var pool := _get_bulky_pool()
+	if pool.is_empty():
+		return 0
+	var total_value := 0
+	for offset in _bulky_spawns.size():
+		var kind := rng.randi_range(0, pool.size() - 1)
+		total_value += pool[kind].value
+		_item_spawner.spawn({
+			"index": _item_spawns.size() + offset,
+			"kind": kind,
+			"bulky": true,
+			"position": _bulky_spawns[offset],
+		})
 	return total_value
 
 
@@ -575,8 +633,9 @@ func _create_item(spawn_data: Variant) -> Node:
 	var info: Dictionary = spawn_data
 	var index: int = info["index"]
 	var kind: int = info["kind"]
+	var bulky: bool = info.get("bulky", false)
 	var spawn_position: Vector3 = info["position"]
-	var pool := _get_item_pool()
+	var pool := _get_bulky_pool() if bulky else _get_item_pool()
 	var item := ITEM_SCENE.instantiate() as Item
 	item.name = "Item_%d" % index
 	item.data = pool[clampi(kind, 0, pool.size() - 1)]
@@ -763,3 +822,26 @@ func _footprint(id: String, centre: Vector2, turn_deg: float) -> Rect2:
 	var width := absf(size.x * cos(angle)) + absf(size.z * sin(angle))
 	var depth := absf(size.x * sin(angle)) + absf(size.z * cos(angle))
 	return Rect2(centre - Vector2(width, depth) * 0.5, Vector2(width, depth))
+
+
+## Breadth-first walk from every outdoor cell through floors and doorways.
+func _compute_depth() -> Dictionary[Vector2i, int]:
+	var depth: Dictionary[Vector2i, int] = {}
+	var queue: Array[Vector2i] = []
+	for row in _rows.size():
+		for col in _rows[row].length():
+			if OUTDOOR_CHARS.contains(_rows[row][col]):
+				var cell := Vector2i(col, row)
+				depth[cell] = 0
+				queue.append(cell)
+	var head := 0
+	while head < queue.size():
+		var cell := queue[head]
+		head += 1
+		for offset: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+			var next := cell + offset
+			if depth.has(next) or not _is_inside(next) or _is_wall(next.x, next.y):
+				continue
+			depth[next] = depth[cell] + 1
+			queue.append(next)
+	return depth

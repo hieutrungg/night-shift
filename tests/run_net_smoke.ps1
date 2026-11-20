@@ -27,7 +27,9 @@ $procs += Start-Role "extra" "X"
 $procs | Wait-Process -Timeout 180 -ErrorAction SilentlyContinue
 $failed = 0
 foreach ($p in $procs) {
-    if (-not $p.HasExited) { $p | Stop-Process -Force; $failed++ ; continue }
+    # The console wrapper starts the real Godot as a child: end the whole tree,
+    # or a stuck host keeps the test port busy for the next run.
+    if (-not $p.HasExited) { taskkill /T /F /PID $p.Id | Out-Null; $failed++ ; continue }
     if ($p.ExitCode -ne 0) { $failed++ }
 }
 Get-ChildItem $LogDir -Filter *.log | ForEach-Object {

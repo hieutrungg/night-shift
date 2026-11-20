@@ -11,3 +11,6 @@ extends Resource
 ## Fallback look when there is no model: a coloured box.
 @export var size: Vector3 = Vector3(0.3, 0.3, 0.3)
 @export var color: Color = Color(0.7, 0.7, 0.7)
+## Bulky loot is carried with both hands: the holder moves very slowly and
+## cannot sprint or jump (see Player).
+@export var bulky: bool = false

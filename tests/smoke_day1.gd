@@ -12,6 +12,10 @@ const FOOTPRINT_TOLERANCE: float = 0.02
 ## A navmesh path must end this close to the loot spawn.
 const PATH_END_TOLERANCE: float = 0.75
 const MIN_DECOR_COUNT: int = 100
+## Carrying bulky loot for this many frames must cover less ground than this.
+const BULKY_WALK_FRAMES: int = 45
+const BULKY_MAX_DISTANCE: float = 1.0
+const DOOR_SWING_FRAMES: int = 40
 ## Up to five seconds for a dropped item to stop rolling.
 const ITEM_SETTLE_FRAMES: int = 300
 
@@ -51,11 +55,16 @@ func _run() -> void:
 	_check(player.is_on_floor(), "player stands on the ground")
 	_check(level.get_player_spawns().size() == GameConfig.MAX_PLAYERS, "one spawn point per max player")
 	_check(level.get_doors().size() == 17, "17 doors built (got %d)" % level.get_doors().size())
-	_check(level.get_items().size() == 15, "15 items spawned (got %d)" % level.get_items().size())
+	var loot_count := level.get_item_spawns().size() + level.get_bulky_spawns().size()
+	_check(level.get_items().size() == loot_count and loot_count == 17,
+		"15 loot + 2 bulky spawned (got %d)" % level.get_items().size())
 
 	_check_decor(level)
 	await _check_walking(player)
 	await _check_door(player, level.get_doors()[0])
+	await _check_doors_open_inwards(level)
+	_check_bulky_in_farthest_room(level)
+	await _check_bulky_carry(level, player)
 	await _check_item(player, level.get_item(0), level.get_item(14))
 	_check_flashlight(player)
 	await _check_round(level, player, level.get_item(0))
@@ -101,7 +110,7 @@ func _check_sounds() -> void:
 		recorded_ok = recorded_ok and randomizer != null and randomizer.streams_count == recorded[stream]
 	_check(recorded_ok, "recorded Kenney sounds load with every variant")
 	var one_shots: Array[AudioStream] = [Sfx.thud(), Sfx.deposit(), Sfx.horn(), Sfx.beep(), Sfx.death_sting()]
-	var loops: Array[AudioStream] = [Sfx.mannequin_scrape(), Sfx.ambience()]
+	var loops: Array[AudioStream] = [Sfx.mannequin_music(), Sfx.ambience()]
 	var synth_ok := true
 	for stream in one_shots:
 		var wav := stream as AudioStreamWAV
@@ -144,6 +153,98 @@ func _check_decor(level: GreyboxLevel) -> void:
 	_check(unreachable.is_empty(), "every loot spawn reachable from the parking lot %s" % str(unreachable))
 
 
+## Every door must swing into the side deeper inside the building.
+func _check_doors_open_inwards(level: GreyboxLevel) -> void:
+	for door in level.get_doors():
+		door._apply_open(true)
+	await _physics_frames(DOOR_SWING_FRAMES)
+	var outward: PackedStringArray = []
+	for door in level.get_doors():
+		var parts := String(door.name).split("_")
+		var cell := Vector2i(parts[1].to_int(), parts[2].to_int())
+		var centre := Vector2(cell) + Vector2(0.5, 0.5)
+		var panel := door.get_panel_position()
+		var offset := Vector2(panel.x, panel.z) - centre
+		# Look one cell along the passage, on the side the panel ended up.
+		var step := Vector2i(signi(roundi(offset.x * 2.0)), 0) if absf(offset.x) > absf(offset.y) \
+			else Vector2i(0, signi(roundi(offset.y * 2.0)))
+		if level.get_cell_depth(cell + step) < level.get_cell_depth(cell - step):
+			outward.append(String(door.name))
+	_check(outward.is_empty(), "every door opens inwards %s" % str(outward))
+	for door in level.get_doors():
+		door._apply_open(false)
+	await _physics_frames(DOOR_SWING_FRAMES)
+
+
+## Bulky loot sits in the room whose doorway is the farthest walk from outside.
+func _check_bulky_in_farthest_room(level: GreyboxLevel) -> void:
+	var farthest := 0
+	var room_of_cell: Dictionary[Vector2i, int] = {}
+	var room_depth: Array[int] = []
+	for row in 30:
+		for col in 40:
+			var start := Vector2i(col, row)
+			if room_of_cell.has(start) or not _is_room_floor(level, start):
+				continue
+			var depth := _flood_room(level, start, room_depth.size(), room_of_cell)
+			room_depth.append(depth)
+			farthest = maxi(farthest, depth)
+	var placed := not level.get_bulky_spawns().is_empty()
+	for spawn in level.get_bulky_spawns():
+		var cell := Vector2i(floori(spawn.x), floori(spawn.z))
+		placed = placed and room_of_cell.has(cell) and room_depth[room_of_cell[cell]] == farthest
+	_check(placed, "bulky loot is in the farthest room (doorway %d steps in)" % farthest)
+
+
+func _is_room_floor(level: GreyboxLevel, cell: Vector2i) -> bool:
+	var tile := level.get_layout_char(cell)
+	return GreyboxLevel.INDOOR_CHARS.contains(tile) and tile != "D" and not tile.is_empty()
+
+
+## Marks one room's cells and returns its shallowest depth (its doorway).
+func _flood_room(level: GreyboxLevel, start: Vector2i, room: int, room_of_cell: Dictionary[Vector2i, int]) -> int:
+	var queue: Array[Vector2i] = [start]
+	room_of_cell[start] = room
+	var shallowest := level.get_cell_depth(start)
+	while not queue.is_empty():
+		var cell: Vector2i = queue.pop_back()
+		shallowest = mini(shallowest, level.get_cell_depth(cell))
+		for offset: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+			var next := cell + offset
+			if not room_of_cell.has(next) and _is_room_floor(level, next):
+				room_of_cell[next] = room
+				queue.append(next)
+	return shallowest
+
+
+## Carrying bulky loot: very slow even when sprinting, then drop it again.
+func _check_bulky_carry(level: GreyboxLevel, player: Player) -> void:
+	var bulky := level.get_item(level.get_item_spawns().size())
+	_check(bulky != null and bulky.data.bulky, "bulky loot spawned after the normal loot")
+	if bulky == null:
+		return
+	var spot := bulky.global_position
+	_teleport(player, Vector3(spot.x + 1.2, 0.1, spot.z))
+	await _physics_frames(5)
+	bulky.request_pick_up()
+	await _physics_frames(5)
+	_check(player.is_carrying_bulky() and player.held_item == bulky, "player picks up bulky loot")
+	var start := player.global_position
+	Input.action_press(InputActions.MOVE_FORWARD)
+	Input.action_press(InputActions.SPRINT)
+	await _physics_frames(BULKY_WALK_FRAMES)
+	Input.action_release(InputActions.MOVE_FORWARD)
+	Input.action_release(InputActions.SPRINT)
+	var moved := start.distance_to(player.global_position)
+	_check(moved < BULKY_MAX_DISTANCE, "carrying bulky loot is very slow, even sprinting (moved %.2f m)" % moved)
+	player.drop_held_item()
+	await _physics_frames(10)
+	_check(not player.is_carrying_bulky(), "bulky loot can be dropped")
+	# Back to the parking lot so later "too far" checks start far from everything.
+	_teleport(player, level.get_player_spawns()[0])
+	await _physics_frames(5)
+
+
 func _check_walking(player: Player) -> void:
 	var start := player.global_position
 	Input.action_press(InputActions.MOVE_FORWARD)
@@ -165,7 +266,7 @@ func _check_door(player: Player, door: Door) -> void:
 	await _physics_frames(5)
 	door.request_set_open(true)
 	await _physics_frames(45)
-	_check(door.is_open and door.get_swing_angle_deg() > 80.0,
+	_check(door.is_open and absf(door.get_swing_angle_deg()) > 80.0,
 		"door opens (angle %.1f)" % door.get_swing_angle_deg())
 	_check(not _doorway_blocked(door, doorway), "open door no longer blocks the doorway")
 	door.request_set_open(false)
@@ -247,7 +348,8 @@ func _check_monster(level: GreyboxLevel, player: Player) -> void:
 	await _physics_frames(60)
 	_check(monster.is_awake() and monster.is_seen, "awake mannequin knows it is watched")
 	_check(monster.global_position.distance_to(start) < 0.1, "mannequin freezes while watched")
-	_check(not monster.is_moving(), "frozen mannequin is silent")
+	var music := monster.get_node(^"Music") as AudioStreamPlayer3D
+	_check(not monster.is_moving() and not music.playing, "frozen mannequin has no chase music")
 
 	# Room next door, wall in between: it must path through the closed door.
 	var door := level.get_node_or_null(^"Door_28_4") as Door
@@ -261,7 +363,7 @@ func _check_monster(level: GreyboxLevel, player: Player) -> void:
 		heard_moving = heard_moving or monster.is_moving()
 		saw_flicker = saw_flicker or flicker.count_dimmed_near(monster.global_position, LightFlicker.MONSTER_RANGE) > 0
 		await get_tree().physics_frame
-	_check(heard_moving, "moving mannequin is flagged (scrape sound)")
+	_check(heard_moving, "moving mannequin is flagged (chase music)")
 	_check(saw_flicker, "lights near the moving mannequin flicker")
 	_check(player.is_dead and not player.visible, "unseen mannequin reaches and kills the player")
 	_check(door != null and door.is_open, "mannequin pushed the closed door open")

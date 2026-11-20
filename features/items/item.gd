@@ -10,6 +10,8 @@ const NO_HOLDER: int = 0
 const MAX_DROP_PUSH: float = 3.0
 ## Held loot is drawn smaller so big things (radio, speaker) do not cover the view.
 const HELD_SCALE: float = 0.7
+## Bulky loot stays bigger in hand: it is meant to be in the way.
+const BULKY_HELD_SCALE: float = 0.85
 ## Loot glows faintly so it can be spotted in dark rooms (share of its colour).
 const GLOW_ENERGY: float = 0.15
 
@@ -128,12 +130,12 @@ func _set_holder(peer_id: int) -> void:
 	if player == null:
 		return
 	holder_id = peer_id
-	_follow_target = player.get_hold_point()
+	_follow_target = player.get_hold_point(data.bulky)
 	freeze = true
 	collision_layer = 0
 	_interactable.enabled = false
 	player.set_held_item(self)
-	_set_visual_scale(HELD_SCALE)
+	_set_visual_scale(BULKY_HELD_SCALE if data.bulky else HELD_SCALE)
 	_sound.stream = Sfx.pickup()
 	_sound.play()
 

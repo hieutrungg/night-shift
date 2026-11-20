@@ -146,7 +146,8 @@ func _refresh_held() -> void:
 	if not is_instance_valid(_held_item):
 		_held_label.text = ""
 		return
-	_held_label.text = tr("HUD_HOLDING").format({
+	var key := "HUD_CARRYING_BULKY" if _held_item.data.bulky else "HUD_HOLDING"
+	_held_label.text = tr(key).format({
 		"item": tr(_held_item.data.name_key),
 		"value": _held_item.data.value,
 	})

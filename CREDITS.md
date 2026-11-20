@@ -11,4 +11,4 @@ Asset bên thứ ba dùng trong game. Mỗi dòng: tên — tác giả — link 
 - Car Kit (garbage-truck, cone, box) — Kenney (Kenney.nl) — https://kenney.nl/assets/car-kit — CC0 1.0. Nằm ở `assets/models/kenney_car_kit/`.
 - Godot Engine 4.7 — Godot Engine contributors, Juan Linietsky, Ariel Manzur — https://godotengine.org — MIT. Thông báo giấy phép đầy đủ (kèm thư viện bên thứ ba trong engine) được ghi ra `build/LICENSES.txt` mỗi lần export và phải đi kèm bản build.
 
-Tường, sàn, trần vẫn là khối hình học của Godot, chỉ phủ texture ambientCG. CREDITS.md được chép vào bản build (`CREDITS.txt`) để ghi tên các tác giả CC BY. các âm thanh còn lại (xe, còi, bíp, nhạc khi chết, tiếng nền, tiếng cọ của ma-nơ-canh) được tạo bằng code (`core/sfx.gd`); font là font mặc định của Godot.
+Tường, sàn, trần vẫn là khối hình học của Godot, chỉ phủ texture ambientCG. CREDITS.md được chép vào bản build (`CREDITS.txt`) để ghi tên các tác giả CC BY. Các âm thanh còn lại (xe, còi, bíp, nhạc khi chết, tiếng nền, nhạc truy đuổi của ma-nơ-canh) được tạo bằng code (`core/sfx.gd`); font là font mặc định của Godot.

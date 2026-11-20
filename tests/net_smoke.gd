@@ -30,8 +30,8 @@ const WINNER_HOLD_SEC: float = 4.0
 const SHUTDOWN_FRAMES: int = 30
 ## The host sets this mannequin pose; clients must see it.
 const SYNC_POSE: int = 2
-## Items spawned by greybox_01 at the start of a round.
-const ITEM_COUNT: int = 15
+## Items spawned by greybox_01 at the start of a round (15 loot + 2 bulky).
+const ITEM_COUNT: int = 17
 ## Lets clients check the result before the host starts the next round.
 const ROUND_RESULT_WAIT_SEC: float = 2.0
 
@@ -92,9 +92,26 @@ func _run_host() -> void:
 		monster.pose_index = SYNC_POSE
 	var moved := await _wait_until(_all_clients_moved, 15.0)
 	_check(moved, "every client's movement reached the host")
+	await _run_host_music_check(monster)
 	await _run_host_contest()
 	# Let clients finish their own checks before the host leaves.
 	await _seconds(3.0)
+
+
+func _run_host_music_check(monster: Mannequin) -> void:
+	if monster == null:
+		return
+	# Reproduce movement while keeping the AI asleep, isolating audio replication.
+	for _frame in 60:
+		monster.position.x += 0.04
+		await get_tree().physics_frame
+	var music := monster.get_node(^"Music") as AudioStreamPlayer3D
+	_check(music.playing, "host plays music while mannequin moves")
+	await _seconds(0.6)
+	_check(not music.playing, "host stops music when mannequin stops")
+	monster.pose_index = SYNC_POSE
+	var client := Player.find_by_peer(get_tree(), _peer_id_of("C1"))
+	_check(client != null and not client.is_flashlight_on(), "client flashlight off state reached the host")
 
 
 func _run_host_contest() -> void:
@@ -154,7 +171,19 @@ func _run_client() -> void:
 	for other in _level_players():
 		if other != me and other.is_multiplayer_authority():
 			_check(false, "client must not control player %s" % other.name)
+	var monster_spawned := await _wait_until(func() -> bool: return level.get_monster() != null, 10.0)
+	_check(monster_spawned, "client mannequin loaded before movement audio check")
+	if not monster_spawned:
+		return
+	if _player_name == "C1" and me.is_flashlight_on():
+		me.toggle_flashlight()
 	me.global_position.x += CLIENT_SHIFT
+	var monster := level.get_monster()
+	var music := monster.get_node(^"Music") as AudioStreamPlayer3D
+	var heard := await _wait_until(func() -> bool: return music.playing, 10.0)
+	_check(heard, "client plays music from synced mannequin movement")
+	var silent := await _wait_until(func() -> bool: return not music.playing, 5.0)
+	_check(silent, "client stops music when synced mannequin stops")
 	await _seconds(CONTEST_START_DELAY_SEC)
 	await _run_client_contest(me)
 	var host_left := await _wait_until(func() -> bool: return not Net.is_online(), 60.0)

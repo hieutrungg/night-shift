@@ -16,12 +16,18 @@ Solo is a bit easier: lower quota, slower mannequin.
 4. Others: type a name and the host's 26.x.x.x address, click "Join".
 5. Host clicks "Start" once at least 2 players are in.
 
-Goal: bring loot from the building to the white van and press E on the
-van to load it. Reach the quota before the clock runs out.
+Goal: bring loot from the building to the garbage truck and press E on it
+to load it. Reach the quota before the clock runs out.
+BULKY loot (old TV, mini fridge) waits in the farthest room. It is worth
+a lot, but you can only walk very slowly while carrying it: no running,
+no jumping. Have a friend watch your back.
 
-THE MANNEQUIN moves only when nobody is looking at it. If it touches you,
-you die. Keep an eye on it, and listen: it scrapes when it moves, and
-nearby lights flicker. Dead players watch the others (Space = next).
+THE MANNEQUIN freezes only when a living player sees its body lit by a
+flashlight or ceiling light. Looking in darkness will not stop it.
+Stay more than 1.2 m away: it can kill even while frozen, but cannot reach
+through walls or closed doors. Chase music plays only while it moves,
+gets louder nearby, and stops when it stops. Nearby lights flicker.
+Dead players watch the others (Space = next).
 
 Controls: WASD move, Shift sprint, Ctrl crouch (quiet), Space jump,
 F flashlight, E use / pick up, G drop, Esc menu (settings, leave).
@@ -44,11 +50,16 @@ Esc tạm dừng game. Chế độ này dễ hơn: chỉ tiêu thấp hơn, ma-n
 4. Người khác: nhập tên và địa chỉ 26.x.x.x của chủ phòng, bấm "Vào phòng".
 5. Chủ phòng bấm "Bắt đầu" khi có ít nhất 2 người.
 
-Mục tiêu: mang đồ trong tòa nhà ra chiếc xe trắng, nhìn vào xe và bấm E
-để chất lên. Đạt chỉ tiêu trước khi hết giờ.
+Mục tiêu: mang đồ trong tòa nhà ra xe rác, nhìn vào xe và bấm E để chất lên.
+Đạt chỉ tiêu trước khi hết giờ.
+ĐỒ CỒNG KỀNH (TV cũ, tủ lạnh mini) nằm ở phòng xa nhất. Rất giá trị, nhưng
+khi khiêng chỉ đi được rất chậm: không chạy, không nhảy. Nhờ bạn canh lưng.
 
-MA-NƠ-CANH chỉ di chuyển khi không ai nhìn nó. Chạm vào là chết. Hãy để
-mắt tới nó và nghe: nó kêu sột soạt khi di chuyển, đèn gần nó nhấp nháy.
+MA-NƠ-CANH chỉ đứng yên khi người còn sống nhìn thấy phần cơ thể được đèn
+pin hoặc đèn trần chiếu sáng. Nhìn nó trong bóng tối không ngăn được nó.
+Giữ khoảng cách hơn 1,2 m: nó vẫn giết được khi đứng yên, nhưng không với
+xuyên tường hoặc cửa đóng. Nhạc truy đuổi chỉ phát khi nó di chuyển,
+càng gần càng rõ và tắt khi nó dừng. Đèn gần nó nhấp nháy.
 Người chết được xem góc nhìn người khác (Space = người tiếp theo).
 
 Phím: WASD đi, Shift chạy, Ctrl ngồi (đi êm), Space nhảy, F đèn pin,
