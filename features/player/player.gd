@@ -192,6 +192,7 @@ func drop_held_item() -> void:
 
 
 func _setup_local() -> void:
+	_footsteps.is_own = true
 	Settings.locale_changed.connect(_on_locale_changed)
 	_camera.current = true
 	_nameplate.visible = false

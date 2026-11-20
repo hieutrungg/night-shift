@@ -155,7 +155,7 @@ Thêm:
 - Mỗi asset bên thứ ba phải có một dòng trong `CREDITS.md`: tên, tác giả, link, giấy phép.
 - Không tự tải hay thêm asset, addon, plugin. Đề xuất cho người dùng trước.
 - MVP dùng hình khối (CSG / MeshInstance3D primitive). Không cần Blender.
-- Âm thanh MVP được tổng hợp bằng code trong `core/sfx.gd` (không có file âm thanh, không cần giấy phép). Muốn thay bằng file thật: đề xuất asset cho người dùng trước, ghi vào `CREDITS.md`, rồi cho hàm tương ứng trong `Sfx` trả về stream đã load.
+- Mọi âm thanh đi qua `core/sfx.gd`: âm thu sẵn (Kenney RPG Audio, CC0, trong `assets/audio/`) hoặc tạo bằng code. Muốn thêm/thay âm thanh: đề xuất asset cho người dùng trước, ghi vào `CREDITS.md`, rồi cho hàm tương ứng trong `Sfx` trả về stream đã load.
 
 ---
 

@@ -1,56 +1,82 @@
 class_name Sfx
 extends RefCounted
-## Sound effects synthesised in code, so the MVP needs no audio files or
-## licences. Each sound is built once (on first use) and cached.
-## Swap any of these for a real recording later by returning a loaded stream.
+## All game sounds in one place. Recorded sounds come from Kenney RPG Audio
+## (CC0, assets/audio/kenney_rpg_audio); the rest are synthesised in code.
+## Each sound is built once (on first use) and cached.
 
 const MIX_RATE: int = 22050
 const MAX_AMPLITUDE: float = 32767.0
 ## Fixed seed: the same noise on every machine and every run.
 const NOISE_SEED: int = 1337
+const KENNEY_DIR: String = "res://assets/audio/kenney_rpg_audio/"
+const FOOTSTEP_FILES: Array[String] = [
+	"footstep00", "footstep01", "footstep02", "footstep03", "footstep04",
+	"footstep05", "footstep06", "footstep07", "footstep08", "footstep09",
+]
+const DOOR_OPEN_FILES: Array[String] = ["doorOpen_1", "doorOpen_2"]
+const DOOR_CLOSE_FILES: Array[String] = ["doorClose_1", "doorClose_2", "doorClose_3", "doorClose_4"]
+const PICKUP_FILES: Array[String] = ["cloth1", "cloth2", "handleSmallLeather"]
+const DROP_FILES: Array[String] = ["dropLeather"]
+const CREAK_FILES: Array[String] = ["creak1", "creak2", "creak3"]
+## Pitch spread for recorded variants (1.0 = none), so repeats sound different.
+const FOOTSTEP_PITCH_SPREAD: float = 1.08
+const DEFAULT_PITCH_SPREAD: float = 1.05
 
-static var _cache: Dictionary[StringName, AudioStreamWAV] = {}
+static var _cache: Dictionary[StringName, AudioStream] = {}
 
 
-static func footstep() -> AudioStreamWAV:
-	return _cached(&"footstep", _make_footstep)
+static func footstep() -> AudioStream:
+	return _cached(&"footstep", _recorded.bind(FOOTSTEP_FILES, FOOTSTEP_PITCH_SPREAD))
 
 
-static func door_creak() -> AudioStreamWAV:
-	return _cached(&"door_creak", _make_door_creak)
+static func door_open() -> AudioStream:
+	return _cached(&"door_open", _recorded.bind(DOOR_OPEN_FILES, DEFAULT_PITCH_SPREAD))
 
 
-static func pickup() -> AudioStreamWAV:
-	return _cached(&"pickup", _make_pickup)
+static func door_close() -> AudioStream:
+	return _cached(&"door_close", _recorded.bind(DOOR_CLOSE_FILES, DEFAULT_PITCH_SPREAD))
 
 
-static func thud() -> AudioStreamWAV:
+static func pickup() -> AudioStream:
+	return _cached(&"pickup", _recorded.bind(PICKUP_FILES, DEFAULT_PITCH_SPREAD))
+
+
+static func item_drop() -> AudioStream:
+	return _cached(&"item_drop", _recorded.bind(DROP_FILES, DEFAULT_PITCH_SPREAD))
+
+
+## Joints creaking when the mannequin starts to move.
+static func mannequin_creak() -> AudioStream:
+	return _cached(&"mannequin_creak", _recorded.bind(CREAK_FILES, DEFAULT_PITCH_SPREAD))
+
+
+static func thud() -> AudioStream:
 	return _cached(&"thud", _make_thud)
 
 
-static func deposit() -> AudioStreamWAV:
+static func deposit() -> AudioStream:
 	return _cached(&"deposit", _make_deposit)
 
 
-static func horn() -> AudioStreamWAV:
+static func horn() -> AudioStream:
 	return _cached(&"horn", _make_horn)
 
 
-static func beep() -> AudioStreamWAV:
+static func beep() -> AudioStream:
 	return _cached(&"beep", _make_beep)
 
 
-static func death_sting() -> AudioStreamWAV:
+static func death_sting() -> AudioStream:
 	return _cached(&"death_sting", _make_death_sting)
 
 
 ## Looping.
-static func mannequin_scrape() -> AudioStreamWAV:
+static func mannequin_scrape() -> AudioStream:
 	return _cached(&"mannequin_scrape", _make_mannequin_scrape)
 
 
 ## Looping.
-static func ambience() -> AudioStreamWAV:
+static func ambience() -> AudioStream:
 	return _cached(&"ambience", _make_ambience)
 
 
@@ -71,49 +97,11 @@ static func play_at(parent: Node, stream: AudioStream, at: Vector3, volume_db: f
 	player.play()
 
 
-static func _cached(key: StringName, maker: Callable) -> AudioStreamWAV:
+static func _cached(key: StringName, maker: Callable) -> AudioStream:
 	if not _cache.has(key):
-		var stream: AudioStreamWAV = maker.call()
+		var stream: AudioStream = maker.call()
 		_cache[key] = stream
 	return _cache[key]
-
-
-static func _make_footstep() -> AudioStreamWAV:
-	var rng := _rng()
-	var samples := PackedFloat32Array()
-	samples.resize(int(0.09 * MIX_RATE))
-	var low := 0.0
-	for i in samples.size():
-		var t := float(i) / MIX_RATE
-		low += (rng.randf_range(-1.0, 1.0) - low) * 0.18
-		samples[i] = (low * 2.2 + sin(TAU * 90.0 * t) * 0.5) * exp(-t * 45.0)
-	return _to_wav(samples, false)
-
-
-static func _make_door_creak() -> AudioStreamWAV:
-	var rng := _rng()
-	var samples := PackedFloat32Array()
-	samples.resize(int(0.7 * MIX_RATE))
-	var phase := 0.0
-	var low := 0.0
-	for i in samples.size():
-		var t := float(i) / MIX_RATE
-		# A wobbling sawtooth reads as wood/hinge friction.
-		var pitch := 110.0 + 35.0 * sin(TAU * 3.0 * t) + rng.randf_range(-6.0, 6.0)
-		phase = fmod(phase + pitch / MIX_RATE, 1.0)
-		low += ((phase * 2.0 - 1.0) - low) * 0.25
-		var envelope := minf(t * 12.0, 1.0) * exp(-t * 2.5)
-		samples[i] = low * envelope * 0.8
-	return _to_wav(samples, false)
-
-
-static func _make_pickup() -> AudioStreamWAV:
-	var samples := PackedFloat32Array()
-	samples.resize(int(0.08 * MIX_RATE))
-	for i in samples.size():
-		var t := float(i) / MIX_RATE
-		samples[i] = sin(TAU * 1250.0 * t) * exp(-t * 60.0) * 0.6
-	return _to_wav(samples, false)
 
 
 static func _make_thud() -> AudioStreamWAV:
@@ -201,6 +189,17 @@ static func _make_ambience() -> AudioStreamWAV:
 		low += (rng.randf_range(-1.0, 1.0) - low) * 0.02
 		samples[i] = (drone * swell + low * 2.0) * 0.35
 	return _to_wav(samples, true)
+
+
+## Random variant on each play, with a little pitch variation.
+static func _recorded(files: Array[String], pitch_spread: float) -> AudioStream:
+	var randomizer := AudioStreamRandomizer.new()
+	randomizer.random_pitch = pitch_spread
+	for file in files:
+		var stream := load(KENNEY_DIR + file + ".ogg") as AudioStream
+		if stream != null:
+			randomizer.add_stream(-1, stream)
+	return randomizer
 
 
 static func _rng() -> RandomNumberGenerator:

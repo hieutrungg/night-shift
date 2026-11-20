@@ -16,7 +16,8 @@ const MAX_KILL_HEIGHT_DIFF: float = 1.5
 const MOVING_HOLD_SEC: float = 0.25
 const MOVING_MIN_SPEED: float = 0.5
 
-@export var move_speed: float = 7.0
+## Players walk at 3.5 m/s and sprint at 6; it only moves when nobody looks.
+@export var move_speed: float = 5.25
 ## Horizontal distance at which it opens a closed door in its way.
 @export var door_open_range: float = 1.2
 @export var kill_range: float = 1.0
@@ -39,6 +40,7 @@ var _scrape_on: bool = false
 
 @onready var _agent: NavigationAgent3D = $NavigationAgent3D
 @onready var _scrape: AudioStreamPlayer3D = $Scrape
+@onready var _creak: AudioStreamPlayer3D = $Creak
 
 
 func _ready() -> void:
@@ -46,6 +48,7 @@ func _ready() -> void:
 	# Pass through door panels (they would wedge it); _open_nearby_doors opens them.
 	collision_mask = GameConfig.LAYER_WORLD
 	_scrape.stream = Sfx.mannequin_scrape()
+	_creak.stream = Sfx.mannequin_creak()
 	_last_position = global_position
 	if not multiplayer.is_server():
 		set_physics_process(false)
@@ -63,6 +66,7 @@ func _process(delta: float) -> void:
 	if is_moving() != _scrape_on:
 		_scrape_on = is_moving()
 		if _scrape_on:
+			_creak.play()
 			_scrape.play()
 		else:
 			_scrape.stop()

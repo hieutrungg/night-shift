@@ -15,12 +15,16 @@ const SPEED_SMOOTHING: float = 0.2
 ## Below this (crouch-walking) steps are quiet; above sprint_speed they are loud.
 @export var quiet_speed: float = 2.5
 @export var sprint_speed: float = 5.0
-@export var quiet_volume_db: float = -16.0
-@export var walk_volume_db: float = -6.0
-@export var sprint_volume_db: float = 0.0
+@export var quiet_volume_db: float = -20.0
+@export var walk_volume_db: float = -10.0
+@export var sprint_volume_db: float = -5.0
+## Your own steps are heard all the time, so they are quieter than other players'.
+@export var own_steps_offset_db: float = -6.0
 
 ## Set when the owner dies.
 var muted: bool = false
+## Set for the local player's own footsteps.
+var is_own: bool = false
 ## Counted for tests.
 var steps_played: int = 0
 
@@ -59,6 +63,7 @@ func _step() -> void:
 		volume_db = walk_volume_db
 	else:
 		volume_db = sprint_volume_db
-	pitch_scale = randf_range(0.9, 1.1)
+	if is_own:
+		volume_db += own_steps_offset_db
 	play()
 	steps_played += 1

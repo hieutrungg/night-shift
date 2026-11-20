@@ -81,16 +81,30 @@ func _check_every_key_translated() -> void:
 
 
 func _check_sounds() -> void:
-	var one_shots: Array[AudioStreamWAV] = [Sfx.footstep(), Sfx.door_creak(), Sfx.pickup(), Sfx.thud(),
-		Sfx.deposit(), Sfx.horn(), Sfx.beep(), Sfx.death_sting()]
-	var loops: Array[AudioStreamWAV] = [Sfx.mannequin_scrape(), Sfx.ambience()]
-	var ok := true
+	var recorded: Dictionary[AudioStream, int] = {
+		Sfx.footstep(): Sfx.FOOTSTEP_FILES.size(),
+		Sfx.door_open(): Sfx.DOOR_OPEN_FILES.size(),
+		Sfx.door_close(): Sfx.DOOR_CLOSE_FILES.size(),
+		Sfx.pickup(): Sfx.PICKUP_FILES.size(),
+		Sfx.item_drop(): Sfx.DROP_FILES.size(),
+		Sfx.mannequin_creak(): Sfx.CREAK_FILES.size(),
+	}
+	var recorded_ok := true
+	for stream: AudioStream in recorded.keys():
+		var randomizer := stream as AudioStreamRandomizer
+		recorded_ok = recorded_ok and randomizer != null and randomizer.streams_count == recorded[stream]
+	_check(recorded_ok, "recorded Kenney sounds load with every variant")
+	var one_shots: Array[AudioStream] = [Sfx.thud(), Sfx.deposit(), Sfx.horn(), Sfx.beep(), Sfx.death_sting()]
+	var loops: Array[AudioStream] = [Sfx.mannequin_scrape(), Sfx.ambience()]
+	var synth_ok := true
 	for stream in one_shots:
-		ok = ok and stream.data.size() > 0 and stream.loop_mode == AudioStreamWAV.LOOP_DISABLED
+		var wav := stream as AudioStreamWAV
+		synth_ok = synth_ok and wav != null and wav.data.size() > 0 and wav.loop_mode == AudioStreamWAV.LOOP_DISABLED
 	for stream in loops:
-		ok = ok and stream.data.size() > 0 and stream.loop_mode == AudioStreamWAV.LOOP_FORWARD
-	_check(ok, "all %d generated sounds are valid" % (one_shots.size() + loops.size()))
-	_check(Sfx.footstep() == one_shots[0], "sounds are generated once and cached")
+		var wav := stream as AudioStreamWAV
+		synth_ok = synth_ok and wav != null and wav.data.size() > 0 and wav.loop_mode == AudioStreamWAV.LOOP_FORWARD
+	_check(synth_ok, "synthesised sounds are valid")
+	_check(Sfx.footstep() == Sfx.footstep(), "sounds are built once and cached")
 
 
 func _check_walking(player: Player) -> void:

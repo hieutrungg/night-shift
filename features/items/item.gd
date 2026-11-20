@@ -141,7 +141,7 @@ func _release(at: Transform3D, push: Vector3) -> void:
 	_interactable.enabled = true
 	if player != null and player.held_item == self:
 		player.set_held_item(null)
-	_sound.stream = Sfx.thud()
+	_sound.stream = Sfx.item_drop()
 	_sound.play()
 	if not multiplayer.is_server():
 		return
